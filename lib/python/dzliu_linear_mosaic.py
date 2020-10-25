@@ -3,10 +3,10 @@
 # This needs to be run in CASA
 # 
 # CASA modules/functions used:
-#     tb, casalog, mstransform, inp, saveinputs, exportfits, tclean
+#     tb, casalog, mstransform, inp, saveinputs, exportfits
 # 
 # Example:
-#     import a_dzliu_code_level_4_clean; reload(a_dzliu_code_level_4_clean); from a_dzliu_code_level_4_clean import dzliu_clean; dzliu_clean()
+#     import dzliu_linear_mosaic; reload(dzliu_linear_mosaic); from a_dzliu_code_level_4_clean import dzliu_clean; dzliu_clean()
 # 
 # For old CASA 4.7.2
 #     pip-2.7 install --target=~/Applications/CASA-472.app/Contents/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages astropy
@@ -63,7 +63,7 @@ def print2(message):
 def velo2freq(input_fits_header):
     # 
     if input_fits_header['NAXIS'] >= 3:
-        if input_fits_header['CTYPE3'].strip().upper() == 'VRAD' and template_fits_header['CTYPE3'].strip().upper() == 'FREQ':
+        if input_fits_header['CTYPE3'].strip().upper() == 'VRAD':
             ctype3 = input_fits_header['CTYPE3']
             cunit3 = input_fits_header['CUNIT3'].strip().replace(' ','').lower()
             crpix3 = input_fits_header['CRPIX3']
@@ -132,7 +132,8 @@ def project_fits_cube_data(input_fits_cube_data, input_fits_header, template_fit
         raise Exception('Error! The template fits header does not have more than 2 dimensions!')
     # 
     # Do velocity-to-frequency conversion before checking header consistency
-    input_fits_header = velo2freq(input_fits_header)
+    if input_fits_header['CTYPE3'].strip().upper() == 'VRAD' and template_fits_header['CTYPE3'].strip().upper() == 'FREQ':
+        input_fits_header = velo2freq(input_fits_header)
     # 
     # Take the minimum dimension of the input and the template fits dimension.
     naxis = min(int(input_fits_header['NAXIS']), int(template_fits_header['NAXIS']))
@@ -563,6 +564,29 @@ def project_fits_cube(input_fits_cube, template_fits_cube, output_fits_cube, ove
 
 
 
+
+# 
+# def examine_overlap_pixels
+# 
+def examine_overlap_pixels(input_image_1, input_image_2):
+    # 
+    # Input two data cubes with the same 3rd dimension.
+    # 
+    import warnings
+    from astropy.utils.exceptions import AstropyWarning
+    warnings.simplefilter('ignore', category=AstropyWarning)
+    from astropy.io import fits
+    from astropy import units as u
+    from astropy import wcs
+    from astropy.wcs import WCS
+    from astropy.wcs.utils import proj_plane_pixel_scales
+    from astropy.coordinates import SkyCoord, FK5
+    raise NotImplementedError('Sorry, dzliu_linear_mosaic.examine_overlap_pixels() not implemented! Use phangs_alma_QA_for_multipart_combined_cube.py instead!')
+    
+
+
+
+
 # 
 # def dzliu_linear_mosaic
 # 
@@ -593,25 +617,33 @@ def dzliu_linear_mosaic(input_image_name_list, output_fits_cube):
     input_fits_cube_list = []
     input_fits_pb_list = []
     for i in range(len(input_image_name_list)):
-        is_pbcorrected = False
+        input_fits_cube_list.append(input_image_name_list[i])
         if re.match(r'.*\.image\.pbcor\.fits$', input_image_name_list[i], re.IGNORECASE):
+            input_fits_cube_list.append(input_image_name_list[i])
             input_image_name_list[i] = re.sub(r'\.image\.pbcor\.fits$', r'', input_image_name_list[i], re.IGNORECASE)
-            is_pbcorrected = True
+            is_pbcorreced = True
         elif re.match(r'.*\.image\.fits$', input_image_name_list[i], re.IGNORECASE):
             input_image_name_list[i] = re.sub(r'\.image\.fits$', r'', input_image_name_list[i], re.IGNORECASE)
+        elif re.match(r'.*\.pb\.fits$', input_image_name_list[i], re.IGNORECASE):
+            input_image_name_list[i] = re.sub(r'\.pb\.fits$', r'', input_image_name_list[i], re.IGNORECASE)
         elif re.match(r'.*\.fits$', input_image_name_list[i], re.IGNORECASE):
             input_image_name_list[i] = re.sub(r'\.fits$', r'', input_image_name_list[i], re.IGNORECASE)
         elif re.match(r'.*\.image$', input_image_name_list[i], re.IGNORECASE):
             input_image_name_list[i] = re.sub(r'\.image$', r'', input_image_name_list[i], re.IGNORECASE)
-        if is_pbcorrected:
-            input_fits_cube_list.append(input_image_name_list[i]+'.image.pbcor.fits')
+        elif re.match(r'.*_pb\.fits$', input_image_name_list[i], re.IGNORECASE):
+            input_image_name_list[i] = re.sub(r'_pb\.fits$', r'', input_image_name_list[i], re.IGNORECASE)
         else:
-            input_fits_cube_list.append(input_image_name_list[i]+'.image.fits')
-        input_fits_pb_list.append(input_image_name_list[i]+'.pb.fits')
+            raise ValueError('Error! The input fits image "%s" should ends with ".image.pbcor.fits", ".image.fits" or ".fits" or ".image"!')
+        # check fits cube file existence
         if not os.path.isfile(input_fits_cube_list[i]):
             raise Exception('Error! The fits image "%s" was not found! input_image_name_list[%d]: %s'%(input_fits_cube_list[i], i, input_image_name_list[i]))
-        if not os.path.isfile(input_fits_pb_list[i]):
-            raise Exception('Error! The fits pb "%s" was not found! input_image_name_list[%d]: %s'%(input_fits_pb_list[i], i, input_image_name_list[i]))
+        # check fits pb file existence and set 'input_fits_pb_list'
+        if os.path.isfile(input_image_name_list[i]+'_pb.fits'):
+            input_fits_pb_list.append(input_image_name_list[i]+'_pb.fits')
+        elif os.path.isfile(input_image_name_list[i]+'.pb.fits'):
+            input_fits_pb_list.append(input_image_name_list[i]+'.pb.fits')
+        else:
+            raise Exception('Error! The fits pb "%s" was not found! input_image_name_list[%d]: %s'%(input_image_name_list[i]+'.pb.fits', i, input_image_name_list[i]))
     # 
     if len(input_fits_pb_list) != len(input_fits_cube_list):
         raise Exception('Error! The input fits cube and pb are inconsistent! input_fits_cube_list: %s; input_fits_pb_list: %s'%(input_fits_cube_list, input_fits_pb_list))
