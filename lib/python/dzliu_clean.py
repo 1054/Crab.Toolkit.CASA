@@ -9,6 +9,9 @@
 #     sys.path.append('/Users/dzliu/Cloud/Github/Crab.Toolkit.CASA/lib/python')
 #     import dzliu_clean; reload(dzliu_clean); dzliu_clean.dzliu_clean(dataset_ms)
 # 
+# Notes:
+#     20200312: numpy too old in CASA 5. np.full not there yet. 
+# 
 from __future__ import print_function
 import os, sys, re, json, copy, timeit, shutil
 import numpy as np
@@ -452,10 +455,13 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
         # update line info with user input
         if line_name is not None:
             for i in range(len(line_name)):
-                lab_line_name, lab_line_freq = find_lab_line_name_and_freq(line_name)
-                matched_index = (np.argwhere(lab_line_names==lab_line_name)).tolist()[0]
-                all_line_velocity[matched_index] = line_velocity[i]
-                all_line_velocity_width[matched_index] = line_velocity_width[i]
+                if line_name[i] == 'cube' or line_name[i] == 'full_cube':
+                    continue
+                else:
+                    lab_line_name, lab_line_freq = find_lab_line_name_and_freq(line_name[i])
+                    matched_index = (np.argwhere(lab_line_names==lab_line_name)).tolist()[0]
+                    all_line_velocity[matched_index] = line_velocity[i]
+                    all_line_velocity_width[matched_index] = line_velocity_width[i]
         
         # 
         # compute obs-frame line frequency
@@ -473,7 +479,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
             spw_ref_freq = spw_ref_freq_col[i]
             print2('spw_%d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
             # find the target line in these spw
-            spw_chan_selection_mask = np.full(len(spw_chan_width_list), True)
+            spw_chan_selection_mask = np.array([True]*len(spw_chan_width_list)) # np.full(len(spw_chan_width_list), True)
             for k in range(len(all_line_frequency)):
                 ref_freq_Hz = spw_chan_freq_list[0]
                 width_freq_Hz = spw_chan_width_list[0]
@@ -520,7 +526,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
             spw_ref_freq = spw_ref_freq_col[i]
             print2('spw_%d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
             # 
-            spw_chan_selection_mask = np.full(len(spw_chan_width_list), True) # select all channels
+            spw_chan_selection_mask = np.array([True]*len(spw_chan_width_list)) # np.full(len(spw_chan_width_list), True) # select all channels
             # 
             all_spw_chan_selection_str += '%d'%(i)
             if i != valid_spw_indicies[-1]:
@@ -597,7 +603,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
     concat(**concat_parameters)
     
     if not os.path.isdir(output_ms):
-        raise Exception('Error! Failed to run mstransform and produce "%s"!'%(output_ms))
+        raise Exception('Error! Failed to run concat and produce "%s"!'%(output_ms))
     else:
         print2('Output to "%s"!'%(output_ms))
     
@@ -1144,8 +1150,9 @@ def run_tclean_with_clean_parameters(clean_parameters):
         exportfits(imagename+'.psf', imagename+'.psf.fits')
         exportfits(imagename+'.pb', imagename+'.pb.fits')
         exportfits(imagename+'.model', imagename+'.model.fits')
-        exportfits(imagename+'.mask', imagename+'.mask.fits')
         exportfits(imagename+'.residual', imagename+'.residual.fits')
+        if os.path.isdir(imagename+'.mask'):
+            exportfits(imagename+'.mask', imagename+'.mask.fits')
     else:
         raise Exception('Error! tclean failed to produce the output image "%s"!'%(imagename+'.image'))
 
@@ -1625,6 +1632,8 @@ def dzliu_clean(dataset_ms,
                 line_velocity = None, 
                 line_velocity_width = None, 
                 line_velocity_resolution = None, 
+                continuum_clean_threshold = 3.5, 
+                line_clean_threshold = 3.5, 
                 overwrite = False):
     # 
     casalog.origin('dzliu_clean')
@@ -1714,10 +1723,18 @@ def dzliu_clean(dataset_ms,
         #
         # Compute rms in the dirty image
         result_imstat_dict = imstat(line_dirty_cube+'.image')
-        threshold = result_imstat_dict['rms'][0] * 3.0 #<TODO># 3-sigma
         # 
-        # Make clean image
-        make_clean_image(line_ms, line_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize)
+        # Check error
+        if len(result_imstat_dict['rms']) == 0:
+            print('Error! Failed to determine rms from "%s"! The image data are problematic! We will skip it!'%(line_dirty_cube+'.image'))
+            continue
+        else:
+            # 
+            # Set threshold
+            threshold = result_imstat_dict['rms'][0] * line_clean_threshold #<TODO># 3-sigma
+            # 
+            # Make clean image
+            make_clean_image(line_ms, line_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize)
     
     # 
     # Make continuum image
@@ -1745,10 +1762,17 @@ def dzliu_clean(dataset_ms,
         #
         # Compute rms in the dirty image
         result_imstat_dict = imstat(continuum_dirty_cube+'.image')
-        threshold = result_imstat_dict['rms'][0] * 1.0 #<TODO># 1.0-sigma
         # 
-        # Make clean image of the rough continuum 
-        make_clean_image_of_continuum(continuum_ms, continuum_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize)
+        # Check error
+        if len(result_imstat_dict['rms']) == 0:
+            print('Error! Failed to determine rms from "%s"! The image data are problematic! We will skip it!'%(continuum_dirty_cube+'.image'))
+        else:
+            # 
+            # Set threshold
+            threshold = result_imstat_dict['rms'][0] * continuum_clean_threshold #<TODO># 3.5-sigma
+            # 
+            # Make clean image of the rough continuum 
+            make_clean_image_of_continuum(continuum_ms, continuum_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize)
 
 
 
