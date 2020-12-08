@@ -10,7 +10,7 @@ import numpy as np
 # 
 # set ms data
 # 
-vis = 'split_science_target.ms'
+vis = sys.argv[1] # 'split_science_target.ms'
 print('vis = %r'%(vis))
 
 

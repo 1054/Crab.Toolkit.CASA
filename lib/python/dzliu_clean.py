@@ -964,9 +964,10 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
             L80uvdist = np.percentile(uvdist, 80) # np.max(uvdist) # now I am using 90-th percentile of baselies, same as used by 'analysisUtils.py' pickCellSize() getBaselineStats(..., percentile=...)
             print2('L80uvdist = %s [m] (80-th percentile)'%(L80uvdist))
             # 
-            synbeam = 2.99792458e8 / ref_freq_Hz / maxuvdist / np.pi * 180.0 * 3600.0 # arcsec
+            #synbeam = 2.99792458e8 / ref_freq_Hz / maxuvdist / np.pi * 180.0 * 3600.0 # arcsec
             synbeam = 0.574 * 2.99792458e8 / ref_freq_Hz / L80uvdist / np.pi * 180.0 * 3600.0 # arcsec # .574lambda/L80, see 'analysisUtils.py' estimateSynthesizedBeamFromASDM()
-            synbeam_nprec = 2 # keep 2 valid 
+            synbeam = synbeam * 1.2 #<TODO># some output results show that the beam is smaller as expected, so here we enlarge it a little bit.
+            synbeam_nprec = 2 # keep 2 valid decimal points
             synbeam_ndigits = (synbeam_nprec-1) - int(np.floor(np.log10(synbeam))) # keep to these digits (precision) after point, e.g., 0.1523 -> nprec 2 -> round(0.1523*100)/100 = 0.15
             synbeam = (np.round(synbeam * 10**(synbeam_ndigits))) / 10**(synbeam_ndigits)
             oversampling = 5.0
