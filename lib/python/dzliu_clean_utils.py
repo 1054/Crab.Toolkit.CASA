@@ -312,7 +312,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
 def cleanup_tclean_products(imagename, cleanup_mask=True, cleanup_fits=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
-    suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.sumwt', '.weight', '.tt0', '.alpha', '.beta'] #<TODO># depends on CASA version and tclean cube type
+    suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.sumwt', '.weight', '.image.tt0', '.psf.tt0', '.tt0', '.alpha', '.beta'] #<TODO># depends on CASA version and tclean cube type
     if cleanup_mask:
         suffix_list.append('.mask')
     for suffix in suffix_list:
@@ -360,7 +360,7 @@ def apply_pbcor_to_tclean_image(imagename, overwrite=True, exit_on_error=True):
 def export_tclean_products_as_fits_files(imagename, dropstokes=True, overwrite=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
-    suffix_list = ['.image', '.image.pbcor', '.mask', '.model', '.pb', '.psf', '.residual', '.tt0', '.alpha', '.beta'] #<TODO># depends on CASA version and tclean cube type
+    suffix_list = ['.image', '.image.pbcor', '.mask', '.model', '.pb', '.psf', '.residual', '.image.tt0', '.psf.tt0', '.tt0', '.alpha', '.beta'] #<TODO># depends on CASA version and tclean cube type
     for suffix in suffix_list:
         infile = imagename+suffix
         outfile = imagename+suffix+'.fits'
