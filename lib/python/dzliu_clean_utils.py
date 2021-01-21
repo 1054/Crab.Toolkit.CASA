@@ -312,11 +312,12 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
 def cleanup_tclean_products(imagename, cleanup_mask=True, cleanup_fits=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
-    suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.weight', 
-                   '.image.tt0', 'image.pbcor.tt0', '.model.tt0', '.pb.tt0', '.psf.tt0', '.residual.tt0', '.weight.tt0', 
-                   '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', 
-                   '.weight.tt2', 
-                   '.tt0', '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
+    suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.weight', '.sumwt', 
+                   '.mask', 
+                   '.image.tt0', 'image.pbcor.tt0', '.model.tt0', '.pb.tt0', '.psf.tt0', '.residual.tt0', '.weight.tt0', '.sumwt.tt0', 
+                   '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.pb.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', '.sumwt.tt1', 
+                   '.image.tt2', 'image.pbcor.tt2', '.model.tt2', '.pb.tt2', '.psf.tt2', '.residual.tt2', '.weight.tt2', '.sumwt.tt2', 
+                   '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
     if cleanup_mask:
         suffix_list.append('.mask')
     for suffix in suffix_list:
@@ -367,9 +368,9 @@ def export_tclean_products_as_fits_files(imagename, dropstokes=True, overwrite=T
     suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.weight', 
                    '.mask', 
                    '.image.tt0', 'image.pbcor.tt0', '.model.tt0', '.pb.tt0', '.psf.tt0', '.residual.tt0', '.weight.tt0', 
-                   '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', 
-                   '.weight.tt2', 
-                   '.tt0', '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
+                   '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.pb.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', 
+                   '.image.tt2', 'image.pbcor.tt2', '.model.tt2', '.pb.tt2', '.psf.tt2', '.residual.tt2', '.weight.tt2', 
+                   '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
     for suffix in suffix_list:
         infile = imagename+suffix
         outfile = imagename+suffix+'.fits'
