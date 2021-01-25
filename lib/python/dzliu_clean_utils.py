@@ -522,37 +522,34 @@ def cleanup_tclean_products(imagename, suffix_list=None, cleanup_mask=True, clea
                         raise Exception('Error! Failed to cleanup tclean product data file %s'%(imagename+suffix+'.fits'))
 
 
-def apply_pbcor_to_tclean_image(imagename, pbimage='', outfile='', cutoff=0.1, overwrite=True, exit_on_error=True):
-    infile = imagename
+def apply_pbcor_to_tclean_image(imagename, cutoff=0.1, overwrite=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
-        if pbimage == '':
-            pbimage = imagename+'.pb'
     elif imagename.endswith('.image.tt0'):
         imagename = re.sub(r'\.image\.tt0$', r'', imagename)
-        if pbimage == '':
-            pbimage = imagename+'.pb.tt0'
-    if pbimage == '':
-        pbimage = imagename+'.pb'
-    if outfile == '':
-        outfile = imagename+'.image.pbcor'
-    if not os.path.isdir(infile) or not os.path.isdir(pbimage):
-        raise Exception('Error! Data not found: "%s" or "%s". Please check your input imagename and pbimage'%(infile, pbimage))
-    if os.path.isdir(outfile):
-        if not overwrite:
-            raise Exception('Found existing data "%s"! Please clean it up first!'%(outfile))
-        else:
-            print2('Found existing data "%s", overwriting it.'%(outfile))
-            shutil.rmtree(outfile)
-    print2('Running CASA task: impbcor(imagename=%r, pbimage=%r, outfile=%r, mode=%r, cutoff=%s)'%(infile, pbimage, outfile, 'divide', cutoff))
-    impbcor(imagename=infile, pbimage=pbimage, outfile=outfile, mode='divide', cutoff=0.1)
-    if os.path.isdir(outfile):
-        print2('Output to "%s"'%(outfile))
-    else:
-        if exit_on_error:
-            raise Exception('Error! Failed to run CASA impbcor and output "%s"'%(outfile))
     # 
-    export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'])
+    for suffix in ['', '.tt0']:
+        infile2 = imagename+'.image'+suffix
+        pbimage2 = imagename+'.pb'+suffix
+        outfile2 = imagename+'.image.pbcor'+suffix
+        #if not os.path.isdir(infile2) or not os.path.isdir(pbimage2):
+        #    raise Exception('Error! Data not found: "%s" or "%s". Please check your input imagename and pbimage'%(infile2, pbimage2))
+        if os.path.isdir(infile2) and os.path.isdir(pbimage2):
+            if os.path.isdir(outfile2):
+                if not overwrite:
+                    raise Exception('Found existing data "%s"! Please clean it up first!'%(outfile2))
+                else:
+                    print2('Found existing data "%s", overwriting it.'%(outfile2))
+                    shutil.rmtree(outfile2)
+            print2('Running CASA task: impbcor(imagename=%r, pbimage=%r, outfile=%r, mode=%r, cutoff=%s)'%(infile2, pbimage2, outfile2, 'divide', cutoff))
+            impbcor(imagename=infile2, pbimage=pbimage2, outfile=outfile2, mode='divide', cutoff=cutoff)
+            if os.path.isdir(outfile2):
+                print2('Output to "%s"'%(outfile2))
+            else:
+                if exit_on_error:
+                    raise Exception('Error! Failed to run CASA impbcor and output "%s"'%(outfile2))
+            # 
+            export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'])
 
 
 def export_tclean_products_as_fits_files(imagename, dropstokes=True, suffix_list=None, overwrite=True, exit_on_error=True):
