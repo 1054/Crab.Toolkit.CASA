@@ -192,7 +192,16 @@ def get_optimized_imsize(imsize, return_decomposed_factors = False):
 #
 # def get field phasecenters
 #
-def get_field_phasecenters(vis, galaxy_name):
+def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
+    """
+    Get Measurement Set phase centers ('DELAY_DIR'). 
+    
+    Return 3 lists: matched_field_name, matched_field_indices, and matched_field_phasecenters. 
+    
+    The 3rd return is a list of two lists: a RA_deg and a Dec_deg list.
+    
+    If galaxy_name is '', then all field phase centers will be returned.
+    """
     #
     # Requires CASA module/function tb.
     #
@@ -200,7 +209,7 @@ def get_field_phasecenters(vis, galaxy_name):
     #
     tb.open(vis+os.sep+'FIELD')
     field_names = tb.getcol('NAME')
-    field_phasecenters = [tb.getcell('DELAY_DIR', i) for i in range(tb.nrows())] # rad,rad
+    field_phasecenters = [tb.getcell(column_name, i) for i in range(tb.nrows())] # rad,rad
     tb.close()
     #
     if galaxy_name != '':
@@ -309,15 +318,16 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
     return imsize, phasecenter
 
 
-def cleanup_tclean_products(imagename, cleanup_mask=True, cleanup_fits=True, exit_on_error=True):
+def cleanup_tclean_products(imagename, suffix_list=None, cleanup_mask=True, cleanup_fits=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
-    suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.weight', '.sumwt', 
-                   '.mask', 
-                   '.image.tt0', 'image.pbcor.tt0', '.model.tt0', '.pb.tt0', '.psf.tt0', '.residual.tt0', '.weight.tt0', '.sumwt.tt0', 
-                   '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.pb.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', '.sumwt.tt1', 
-                   '.image.tt2', 'image.pbcor.tt2', '.model.tt2', '.pb.tt2', '.psf.tt2', '.residual.tt2', '.weight.tt2', '.sumwt.tt2', 
-                   '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
+    if suffix_list is None:
+        suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.weight', '.sumwt', 
+                       '.mask', 
+                       '.image.tt0', 'image.pbcor.tt0', '.model.tt0', '.pb.tt0', '.psf.tt0', '.residual.tt0', '.weight.tt0', '.sumwt.tt0', 
+                       '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.pb.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', '.sumwt.tt1', 
+                       '.image.tt2', 'image.pbcor.tt2', '.model.tt2', '.pb.tt2', '.psf.tt2', '.residual.tt2', '.weight.tt2', '.sumwt.tt2', 
+                       '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
     if cleanup_mask:
         suffix_list.append('.mask')
     for suffix in suffix_list:
@@ -338,21 +348,29 @@ def cleanup_tclean_products(imagename, cleanup_mask=True, cleanup_fits=True, exi
                         raise Exception('Error! Failed to cleanup tclean product data file %s'%(imagename+suffix+'.fits'))
 
 
-def apply_pbcor_to_tclean_image(imagename, overwrite=True, exit_on_error=True):
+def apply_pbcor_to_tclean_image(imagename, pbimage='', outfile='', cutoff=0.1, overwrite=True, exit_on_error=True):
+    infile = imagename
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
-    infile = imagename+'.image'
-    pbimage = imagename+'.pb'
-    outfile = imagename+'.image.pbcor'
+        if pbimage == '':
+            pbimage = imagename+'.pb'
+    elif imagename.endswith('.image.tt0'):
+        imagename = re.sub(r'\.image\.tt0$', r'', imagename)
+        if pbimage == '':
+            pbimage = imagename+'.pb.tt0'
+    if pbimage == '':
+        pbimage = imagename+'.pb'
+    if outfile == '':
+        outfile = imagename+'.image.pbcor'
     if not os.path.isdir(infile) or not os.path.isdir(pbimage):
-        raise Exception('Error! Data not found: "%s" or "%s"'%(infile, pbimage))
+        raise Exception('Error! Data not found: "%s" or "%s". Please check your input imagename and pbimage'%(infile, pbimage))
     if os.path.isdir(outfile):
         if not overwrite:
             raise Exception('Found existing data "%s"! Please clean it up first!'%(outfile))
         else:
             print2('Found existing data "%s", overwriting it.'%(outfile))
             shutil.rmtree(outfile)
-    print2('Running CASA task: impbcor(imagename=%r, pbimage=%r, outfile=%r, mode=%r, cutoff=%s)'%(infile, pbimage, outfile, 'divide', 0.1))
+    print2('Running CASA task: impbcor(imagename=%r, pbimage=%r, outfile=%r, mode=%r, cutoff=%s)'%(infile, pbimage, outfile, 'divide', cutoff))
     impbcor(imagename=infile, pbimage=pbimage, outfile=outfile, mode='divide', cutoff=0.1)
     if os.path.isdir(outfile):
         print2('Output to "%s"'%(outfile))
@@ -360,17 +378,21 @@ def apply_pbcor_to_tclean_image(imagename, overwrite=True, exit_on_error=True):
         if exit_on_error:
             raise Exception('Error! Failed to run CASA impbcor and output "%s"'%(outfile))
     # 
+    export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'])
 
 
-def export_tclean_products_as_fits_files(imagename, dropstokes=True, overwrite=True, exit_on_error=True):
+def export_tclean_products_as_fits_files(imagename, dropstokes=True, suffix_list=None, overwrite=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
-    suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.weight', 
-                   '.mask', 
-                   '.image.tt0', 'image.pbcor.tt0', '.model.tt0', '.pb.tt0', '.psf.tt0', '.residual.tt0', '.weight.tt0', 
-                   '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.pb.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', 
-                   '.image.tt2', 'image.pbcor.tt2', '.model.tt2', '.pb.tt2', '.psf.tt2', '.residual.tt2', '.weight.tt2', 
-                   '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
+    elif imagename.endswith('.image.tt0'):
+        imagename = re.sub(r'\.image\.tt0$', r'', imagename)
+    if suffix_list is None:
+        suffix_list = ['.image', '.image.pbcor', '.model', '.pb', '.psf', '.residual', '.weight', 
+                       '.mask', 
+                       '.image.tt0', 'image.pbcor.tt0', '.model.tt0', '.pb.tt0', '.psf.tt0', '.residual.tt0', '.weight.tt0', 
+                       '.image.tt1', 'image.pbcor.tt1', '.model.tt1', '.pb.tt1', '.psf.tt1', '.residual.tt1', '.weight.tt1', 
+                       '.image.tt2', 'image.pbcor.tt2', '.model.tt2', '.pb.tt2', '.psf.tt2', '.residual.tt2', '.weight.tt2', 
+                       '.alpha', '.alpha.error'] #<TODO># depends on CASA version and tclean cube type
     for suffix in suffix_list:
         infile = imagename+suffix
         outfile = imagename+suffix+'.fits'
