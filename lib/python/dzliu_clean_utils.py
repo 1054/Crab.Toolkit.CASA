@@ -549,7 +549,7 @@ def apply_pbcor_to_tclean_image(imagename, cutoff=0.1, overwrite=True, exit_on_e
                 if exit_on_error:
                     raise Exception('Error! Failed to run CASA impbcor and output "%s"'%(outfile2))
             # 
-            export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'])
+            export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'+suffix])
 
 
 def export_tclean_products_as_fits_files(imagename, dropstokes=True, suffix_list=None, overwrite=True, exit_on_error=True):
