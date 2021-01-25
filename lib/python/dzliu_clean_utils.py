@@ -117,6 +117,9 @@ def get_antenn_diameter(vis):
 # def get_ref_frequency
 #
 def get_ref_frequency(vis, spw_list=None):
+    return get_ref_frequency_Hz(vis, spw_list=spw_list)
+#
+def get_ref_frequency_Hz(vis, spw_list=None):
     #
     # Requires CASA module/function tb.
     #
@@ -133,6 +136,33 @@ def get_ref_frequency(vis, spw_list=None):
         ref_frequency = spw_ref_frequency[0] # if no spw is specified, use the first spw REF_FREQUNCY
     # 
     return ref_frequency
+
+
+
+#
+# def get_chan_width_MHz
+#
+def get_chan_width(vis, spw_list=None):
+    return get_chan_width_MHz(vis, spw_list=spw_list)
+# 
+def get_chan_width_MHz(vis, spw_list=None):
+    #
+    # Requires CASA module/function tb.
+    #
+    casalog.origin('get_central_channel_frequency')
+    #
+    tb.open(vis+os.sep+'SPECTRAL_WINDOW')
+    spw_chan_width = tb.getcol('CHAN_WIDTH') # a list of list, Hz
+    tb.close()
+    #
+    if spw_list is not None:
+        chan_width_array_MHz = np.array([spw_chan_width[t][0] for t in spw_list]) / 1e6
+        return chan_width_array_MHz
+    else:
+        chan_width_MHz = spw_chan_width[0][0] / 1e6 # if no spw is specified, use the first spw CHAN_WIDTH
+        return chan_width_MHz
+    # 
+    #return chan_width_MHz
 
 
 
@@ -318,6 +348,150 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
     return imsize, phasecenter
 
 
+
+#
+# def get spw for spectral line
+#
+def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width_kms=None, return_dict=False, verbose=True):
+    #
+    casalog.origin('get_spw_for_spectral_line')
+    # 
+    if redshift is None or rest_freq_GHz is None:
+        print2('Error! Please input redshift and rest_freq_GHz!')
+        raise Exception('Error! Please input redshift and rest_freq_GHz!')
+    # 
+    rest_freq_Hz = rest_freq_GHz * 1e9
+    line_freq_GHz = rest_freq_GHz / (1.0+redshift)
+    if line_width_kms is None:
+        print2('Setting line_width_kms to default value 1000.0 km/s.')
+        line_width_kms = 1000.0 # km/s
+    line_width_MHz = line_width_kms/2.99792458e5*line_freq_GHz*1000. # km/s
+    line_freq_range_Hz = [line_freq_GHz*1e9 - line_width_MHz/2.0*1e6, line_freq_GHz*1e9 + line_width_MHz/2.0*1e6]
+    # 
+    #au.getScienceSpws(vis)
+    #
+    tb.open(vis+os.sep+'SPECTRAL_WINDOW')
+    spw_id = np.arange(0,tb.nrows()) # 
+    spw_name = tb.getcol('NAME') # 
+    spw_nchan = tb.getcol('NUM_CHAN') # 
+    spw_chan_freq = tb.getcol('CHAN_FREQ') # a list of list, Hz
+    spw_chan_width = tb.getcol('CHAN_WIDTH') # Hz
+    spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
+    tb.close()
+    # 
+    spw_selection_dict = {}
+    spw_selection_str = ''
+    for i in spw_id:
+        nchan = spw_nchan[i]
+        ch0 = spw_chan_freq[i][0] # 
+        chstep = spw_chan_width[i][0] # assuming all channels have the same width in a spw
+        chlast = ch0 + (nchan-1.) * chstep
+        if (line_freq_range_Hz[1] > max(ch0, chlast)) and (line_freq_range_Hz[0] < min(ch0, chlast)):
+            if chstep > 0:
+                # line in spw
+                chleft = np.ceil((line_freq_range_Hz[0] - ch0) / chstep)
+                chright = np.floor((line_freq_range_Hz[1] - ch0) / chstep)
+            else:
+                chleft = np.ceil((line_freq_range_Hz[1] - ch0) / chstep)
+                chright = np.floor((line_freq_range_Hz[0] - ch0) / chstep)
+            # 
+            if chleft < 0:
+                chleft = 0
+            if chright > nchan-1:
+                chright = nchan-1
+            # 
+            spw_selection_dict[i] = '%d~%d'%(chleft, chright)
+            if spw_selection_str != '':
+                spw_selection_str += ','
+            spw_selection_str += '%d:%d~%d'%(i, chleft, chright)
+    # 
+    if verbose:
+        print2('spw_selection_str = %s'%(spw_selection_str))
+    # 
+    if return_dict:
+        return spw_selection_str, spw_selection_dict
+    else:
+        return spw_selection_str
+
+
+
+#
+# def get_mstransform_params_for_spectral_line
+#
+def get_mstransform_params_for_spectral_line(
+        vis, 
+        outputvis, 
+        field=None, 
+        redshift=None, 
+        rest_freq_GHz=None, 
+        line_width_kms=None, 
+        chan_width_kms=None, 
+        force_integer_chan_width=True, 
+        verbose=True, 
+    ):
+    #
+    casalog.origin('get_spw_for_spectral_line')
+    # 
+    if field is None or redshift is None or rest_freq_GHz is None or line_width_kms is None or chan_width_kms is None:
+        print2('Error! Please input field, redshift, rest_freq_GHz, line_width_kms and chan_width_kms!')
+        raise Exception('Error! Please input field, redshift, rest_freq_GHz, line_width_kms and chan_width_kms!')
+    # 
+    rest_freq_Hz = rest_freq_GHz * 1e9
+    line_freq_GHz = rest_freq_GHz / (1.0+redshift)
+    line_freq_Hz = line_freq_GHz * 1e9
+    line_freq_MHz = line_freq_GHz * 1e3
+    line_width_MHz = line_width_kms/2.99792458e5*line_freq_GHz*1000. # km/s -> MHz
+    line_freq_range_Hz = [line_freq_GHz*1e9 - line_width_MHz/2.0*1e6, line_freq_GHz*1e9 + line_width_MHz/2.0*1e6]
+    # 
+    #au.getScienceSpws(vis)
+    #
+    tb.open(vis+os.sep+'SPECTRAL_WINDOW')
+    spw_id = np.arange(0,tb.nrows()) # 
+    spw_name = tb.getcol('NAME') # 
+    spw_nchan = tb.getcol('NUM_CHAN') # 
+    spw_chan_freq = tb.getcol('CHAN_FREQ') # a list of list, Hz
+    spw_chan_width = tb.getcol('CHAN_WIDTH') # Hz
+    spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
+    tb.close()
+    # 
+    mstransform_params = {}
+    # 
+    spw_selection_str, spw_selection_dict = get_spw_for_spectral_line(vis, redshift=redshift, rest_freq_GHz=rest_freq_GHz, line_width_kms=line_width_kms, return_dict=True)
+    # 
+    output_chan_width_MHz = (chan_width_kms/2.99792458e5*line_freq_MHz)
+    if force_integer_chan_width:
+        chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
+        chan_width_MHz = np.min(chan_width_MHz)
+        output_chan_width_MHz = np.round(output_chan_width_MHz/chan_width_MHz)*chan_width_MHz
+    # 
+    output_nchan = int(np.ceil(line_width_MHz / output_chan_width_MHz))
+    # 
+    mstransform_params['vis'] = vis
+    mstransform_params['outputvis'] = outputvis
+    mstransform_params['field'] = field
+    mstransform_params['spw'] = ','.join(list(spw_selection_dict.keys()))
+    mstransform_params['width'] = '%.6fMHz'%(output_chan_width_MHz)
+    mstransform_params['regridms'] = True
+    mstransform_params['mode'] = 'frequency'
+    mstransform_params['restfreq'] = '%.6fMHz'%(line_freq_MHz)
+    mstransform_params['start'] = '%.6fMHz'%(line_freq_MHz - output_chan_width_MHz*(output_nchan-1.)/2.)
+    mstransform_params['nchan'] = output_nchan
+    mstransform_params['outframe'] = 'LSRK'
+    mstransform_params['datacolumn'] = get_datacolumn(vis)
+    mstransform_params['combinespws'] = True
+    mstransform_params['keepflags'] = False
+    mstransform_params['keepmms'] = False
+    # 
+    if verbose:
+        print2('mstransform_params: mstransform('+', '.join("{!s}={!r}".format(k, mstransform_params[k]) for k in mstransform_params.keys())+')')
+    # 
+    return mstransform_params
+
+
+
+# 
+# 
+# 
 def cleanup_tclean_products(imagename, suffix_list=None, cleanup_mask=True, cleanup_fits=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
