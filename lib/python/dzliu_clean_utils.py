@@ -473,6 +473,8 @@ def get_mstransform_params_for_spectral_line(
         min_chan_width_MHz = chan_width_MHz[0]
         for ispw in spw_selection_dict.keys():
             if chan_width_MHz[ispw] > output_chan_width_MHz:
+                if verbose:
+                    print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(chan_width_MHz[ispw], output_chan_width_MHz))
                 del spw_selection_dict[ispw]
             else:
                 if min_chan_width_MHz > chan_width_MHz[ispw]:
