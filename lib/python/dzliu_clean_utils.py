@@ -469,8 +469,15 @@ def get_mstransform_params_for_spectral_line(
         chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
         if verbose:
             print2('chan_width_MHz: %s, spw_selection_dict: %s'%(chan_width_MHz, spw_selection_dict))
-        chan_width_MHz = np.min(chan_width_MHz)
-        output_chan_width_MHz = np.round(output_chan_width_MHz/chan_width_MHz)*chan_width_MHz
+        chan_width_MHz = np.abs(chan_width_MHz)
+        min_chan_width_MHz = chan_width_MHz[0]
+        for ispw in spw_selection_dict.keys():
+            if chan_width_MHz[ispw] > output_chan_width_MHz:
+                del spw_selection_dict[ispw]
+            else:
+                if min_chan_width_MHz > chan_width_MHz[ispw]:
+                    min_chan_width_MHz = chan_width_MHz[ispw]
+        output_chan_width_MHz = np.round(output_chan_width_MHz/min_chan_width_MHz)*min_chan_width_MHz
     # 
     output_nchan = int(np.ceil(line_width_MHz / output_chan_width_MHz))
     # 
