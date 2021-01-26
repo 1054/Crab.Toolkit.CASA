@@ -308,7 +308,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
     if verbose:
         print2('minantdiam = %s [meter]'%(minantdiam))
         print2('pribeam = %s [arcsec]'%(pribeam * 3600.0))
-        print2('matched_field_phasecenters = %s'%(matched_field_phasecenters))
+        print2('matched_field_phasecenters = %s'%(re.sub(r'[ \t\n\r]+', r' ', str(matched_field_phasecenters))))
         print2('matched_field_min_RA_deg = %s'%(matched_field_min_RA_deg))
         print2('matched_field_max_RA_deg = %s'%(matched_field_max_RA_deg))
         print2('matched_field_min_Dec_deg = %s'%(matched_field_min_Dec_deg))
