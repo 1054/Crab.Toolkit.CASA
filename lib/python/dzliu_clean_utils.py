@@ -368,6 +368,9 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
         line_width_kms = 1000.0 # km/s
     line_width_MHz = line_width_kms/2.99792458e5*line_freq_GHz*1000. # km/s
     line_freq_range_Hz = [line_freq_GHz*1e9 - line_width_MHz/2.0*1e6, line_freq_GHz*1e9 + line_width_MHz/2.0*1e6]
+    if verbose:
+        print2('line_width_MHz = %s'%(line_width_MHz))
+        print2('line_freq_range_Hz = %s'%(line_freq_range_Hz))
     # 
     #au.getScienceSpws(vis)
     #
@@ -387,6 +390,8 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
         ch0 = spw_chan_freq[i] # 
         chstep = spw_chan_width[i] # 
         chlast = ch0 + (nchan-1.) * chstep
+        if verbose:
+            print2('spw %s, ch0 %s, chstep %s, nchan %s'%(i, ch0, chstep, nchan))
         if (line_freq_range_Hz[1] > max(ch0, chlast)) and (line_freq_range_Hz[0] < min(ch0, chlast)):
             if chstep > 0:
                 # line in spw
