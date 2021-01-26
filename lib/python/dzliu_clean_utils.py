@@ -391,8 +391,8 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
         chstep = spw_chan_width[i] # 
         chlast = ch0 + (nchan-1.) * chstep
         if verbose:
-            print2('spw %s, ch0 %s, chstep %s, nchan %s'%(i, ch0, chstep, nchan))
-        if (line_freq_range_Hz[1] > max(ch0, chlast)) and (line_freq_range_Hz[0] < min(ch0, chlast)):
+            print2('spw %s, ch0 %s, chlast %s, chstep %s, nchan %s'%(i, ch0, chlast, chstep, nchan))
+        if (line_freq_range_Hz[1] > min(ch0, chlast)) and (line_freq_range_Hz[0] < max(ch0, chlast)) and nchan > 1:
             if chstep > 0:
                 # line in spw
                 chleft = np.ceil((line_freq_range_Hz[0] - ch0) / chstep)
