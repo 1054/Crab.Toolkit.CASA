@@ -412,7 +412,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
             spw_selection_str += '%d:%d~%d'%(i, chleft, chright)
     # 
     if verbose:
-        print2('spw_selection_str = %s'%(spw_selection_str))
+        print2('spw_selection_str = %r'%(spw_selection_str))
     # 
     if return_dict:
         return spw_selection_str, spw_selection_dict
@@ -467,6 +467,8 @@ def get_mstransform_params_for_spectral_line(
     output_chan_width_MHz = (chan_width_kms/2.99792458e5*line_freq_MHz)
     if force_integer_chan_width:
         chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
+        if verbose:
+            print2('chan_width_MHz: %s, spw_selection_dict: %s'%(chan_width_MHz, spw_selection_dict))
         chan_width_MHz = np.min(chan_width_MHz)
         output_chan_width_MHz = np.round(output_chan_width_MHz/chan_width_MHz)*chan_width_MHz
     # 
