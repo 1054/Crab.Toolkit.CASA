@@ -375,7 +375,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
     spw_name = tb.getcol('NAME') # 
     spw_nchan = tb.getcol('NUM_CHAN') # 
     spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i)[0] for i in spw_id]) # a list of list, Hz
-    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # Hz
+    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz
     spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
     tb.close()
     # 
@@ -449,8 +449,8 @@ def get_mstransform_params_for_spectral_line(
     spw_id = np.arange(0,tb.nrows()) # 
     spw_name = tb.getcol('NAME') # 
     spw_nchan = tb.getcol('NUM_CHAN') # 
-    spw_chan_freq = tb.getcol('CHAN_FREQ') # a list of list, Hz
-    spw_chan_width = tb.getcol('CHAN_WIDTH') # Hz
+    spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i)[0] for i in spw_id]) # a list of list, Hz
+    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz
     spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
     tb.close()
     # 
