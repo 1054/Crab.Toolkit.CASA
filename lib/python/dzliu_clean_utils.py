@@ -497,7 +497,7 @@ def get_mstransform_params_for_spectral_line(
     mstransform_params['datacolumn'] = get_datacolumn(vis)
     mstransform_params['combinespws'] = True
     mstransform_params['keepflags'] = False
-    mstransform_params['keepmms'] = False
+    #mstransform_params['keepmms'] = False
     # 
     if verbose:
         print2('mstransform_params: mstransform('+', '.join("{!s}={!r}".format(k, mstransform_params[k]) for k in mstransform_params.keys())+')')
