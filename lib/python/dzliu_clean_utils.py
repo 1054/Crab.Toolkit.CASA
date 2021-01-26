@@ -157,10 +157,10 @@ def get_chan_width_MHz(vis, spw_list=None):
     tb.close()
     #
     if spw_list is not None:
-        chan_width_array_MHz = np.array([spw_chan_width[t][0] for t in spw_list]) / 1e6
+        chan_width_array_MHz = np.array([spw_chan_width[t] for t in spw_list]) / 1e6
         return chan_width_array_MHz
     else:
-        chan_width_MHz = spw_chan_width[0][0] / 1e6 # if no spw is specified, use the first spw CHAN_WIDTH
+        chan_width_MHz = spw_chan_width[0] / 1e6 # if no spw is specified, use the first spw CHAN_WIDTH
         return chan_width_MHz
     # 
     #return chan_width_MHz
@@ -376,7 +376,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
     spw_name = tb.getcol('NAME') # 
     spw_nchan = tb.getcol('NUM_CHAN') # 
     spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i)[0] for i in spw_id]) # a list of list, Hz
-    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz
+    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz, assuming all channels have the same width in a spw
     spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
     tb.close()
     # 
@@ -385,7 +385,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
     for i in spw_id:
         nchan = spw_nchan[i]
         ch0 = spw_chan_freq[i] # 
-        chstep = spw_chan_width[i] # assuming all channels have the same width in a spw
+        chstep = spw_chan_width[i] # 
         chlast = ch0 + (nchan-1.) * chstep
         if (line_freq_range_Hz[1] > max(ch0, chlast)) and (line_freq_range_Hz[0] < min(ch0, chlast)):
             if chstep > 0:
@@ -451,7 +451,7 @@ def get_mstransform_params_for_spectral_line(
     spw_name = tb.getcol('NAME') # 
     spw_nchan = tb.getcol('NUM_CHAN') # 
     spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i)[0] for i in spw_id]) # a list of list, Hz
-    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz
+    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz, assuming all channels have the same width in a spw
     spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
     tb.close()
     # 
