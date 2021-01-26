@@ -374,8 +374,8 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
     spw_id = np.arange(0,tb.nrows()) # 
     spw_name = tb.getcol('NAME') # 
     spw_nchan = tb.getcol('NUM_CHAN') # 
-    spw_chan_freq = tb.getcol('CHAN_FREQ') # a list of list, Hz
-    spw_chan_width = tb.getcol('CHAN_WIDTH') # Hz
+    spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i)[0] for i in spw_id]) # a list of list, Hz
+    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # Hz
     spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
     tb.close()
     # 
@@ -383,8 +383,8 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
     spw_selection_str = ''
     for i in spw_id:
         nchan = spw_nchan[i]
-        ch0 = spw_chan_freq[i][0] # 
-        chstep = spw_chan_width[i][0] # assuming all channels have the same width in a spw
+        ch0 = spw_chan_freq[i] # 
+        chstep = spw_chan_width[i] # assuming all channels have the same width in a spw
         chlast = ch0 + (nchan-1.) * chstep
         if (line_freq_range_Hz[1] > max(ch0, chlast)) and (line_freq_range_Hz[0] < min(ch0, chlast)):
             if chstep > 0:
