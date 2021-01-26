@@ -152,7 +152,8 @@ def get_chan_width_MHz(vis, spw_list=None):
     casalog.origin('get_central_channel_frequency')
     #
     tb.open(vis+os.sep+'SPECTRAL_WINDOW')
-    spw_chan_width = tb.getcol('CHAN_WIDTH') # a list of list, Hz
+    spw_id = np.arange(0,tb.nrows()) # 
+    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz
     tb.close()
     #
     if spw_list is not None:
