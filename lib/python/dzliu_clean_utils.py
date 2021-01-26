@@ -486,7 +486,7 @@ def get_mstransform_params_for_spectral_line(
     mstransform_params['vis'] = vis
     mstransform_params['outputvis'] = outputvis
     mstransform_params['field'] = field
-    mstransform_params['spw'] = ','.join(list(spw_selection_dict.keys()))
+    mstransform_params['spw'] = ','.join([str(t) for t in spw_selection_dict.keys()])
     mstransform_params['width'] = '%.6fMHz'%(output_chan_width_MHz)
     mstransform_params['regridms'] = True
     mstransform_params['mode'] = 'frequency'
