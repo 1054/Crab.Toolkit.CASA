@@ -569,7 +569,7 @@ def apply_pbcor_to_tclean_image(imagename, cutoff=0.1, overwrite=True, exit_on_e
             export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'+suffix])
 
 
-def export_tclean_products_as_fits_files(imagename, dropstokes=True, suffix_list=None, overwrite=True, exit_on_error=True):
+def export_tclean_products_as_fits_files(imagename, dropstokes=True, velocity=False, suffix_list=None, overwrite=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
     elif imagename.endswith('.image.tt0'):
@@ -595,8 +595,8 @@ def export_tclean_products_as_fits_files(imagename, dropstokes=True, suffix_list
                 else:
                     print2('Found existing tclean product fits file "%s", overwriting it.'%(outfile))
                     os.remove(outfile)
-            print2('Running CASA task: exportfits(%r, %r, dropstokes=%s)'%(infile, outfile, dropstokes))
-            exportfits(infile, outfile, dropstokes=dropstokes)
+            print2('Running CASA task: exportfits(%r, %r, dropstokes=%s, velocity=%s)'%(infile, outfile, dropstokes, velocity))
+            exportfits(infile, outfile, dropstokes=dropstokes, velocity=velocity)
             if os.path.isfile(outfile):
                 print2('Output to "%s"'%(outfile))
             else:
@@ -605,7 +605,7 @@ def export_tclean_products_as_fits_files(imagename, dropstokes=True, suffix_list
 
 
 def imsmooth_tclean_image(infile, major, minor=None, pa=None, kernel='gaussian', targetres=True, outfile=None, 
-                          overwrite=True, exit_on_error=True, export_fits=True):
+                          overwrite=True, exit_on_error=True, export_fits=True, dropstokes=True, velocity=False):
     # check user input
     if not isinstance(infile, str):
         raise Exception('Error! Please input the tclean image data file path. It must be an existing directory.')
@@ -657,7 +657,7 @@ def imsmooth_tclean_image(infile, major, minor=None, pa=None, kernel='gaussian',
             os.remove(outfile+'.fits')
     # export fits file
     if export_fits and run_export_fits:
-        exportfits(outfile, outfile+'.fits', dropstokes=True)
+        exportfits(outfile, outfile+'.fits', dropstokes=dropstokes, velocity=velocity)
         if os.path.isfile(outfile+'.fits'):
             print2('Output to "%s"'%(outfile+'.fits'))
         else:
