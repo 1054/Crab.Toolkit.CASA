@@ -539,7 +539,7 @@ def cleanup_tclean_products(imagename, suffix_list=None, cleanup_mask=True, clea
                         raise Exception('Error! Failed to cleanup tclean product data file %s'%(imagename+suffix+'.fits'))
 
 
-def apply_pbcor_to_tclean_image(imagename, cutoff=0.1, overwrite=True, exit_on_error=True):
+def apply_pbcor_to_tclean_image(imagename, cutoff=0.1, dropstokes=True, velocity=True, overwrite=True, exit_on_error=True):
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
     elif imagename.endswith('.image.tt0'):
@@ -566,7 +566,7 @@ def apply_pbcor_to_tclean_image(imagename, cutoff=0.1, overwrite=True, exit_on_e
                 if exit_on_error:
                     raise Exception('Error! Failed to run CASA impbcor and output "%s"'%(outfile2))
             # 
-            export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'+suffix])
+            export_tclean_products_as_fits_files(imagename, suffix_list=['.image.pbcor'+suffix], dropstokes=dropstokes, velocity=velocity)
 
 
 def export_tclean_products_as_fits_files(imagename, dropstokes=True, velocity=False, suffix_list=None, overwrite=True, exit_on_error=True):
