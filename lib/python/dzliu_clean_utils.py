@@ -389,7 +389,9 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                 divided_imsize_Dec_deg = imsize_Dec_deg / nrow
                 divided_imsize_RA_deg_padded = divided_imsize_RA_deg + (imsize_RA_deg_padded - imsize_RA_deg)
                 divided_imsize_Dec_deg_padded = divided_imsize_Dec_deg + (imsize_Dec_deg_padded - imsize_Dec_deg)
-                divided_imsize = [int(np.ceil(divided_imsize_RA_deg_padded)), int(np.ceil(divided_imsize_Dec_deg_padded))]
+                divided_imsize_RA = divided_imsize_RA_deg_padded / (imcell_arcsec / 3600.0) # pixels
+                divided_imsize_Dec = divided_imsize_Dec_deg_padded / (imcell_arcsec / 3600.0) # pixels
+                divided_imsize = [int(np.ceil(divided_imsize_RA)), int(np.ceil(divided_imsize_Dec))]
                 divided_imsize_list.append(divided_imsize)
                 divided_center_RA_list.append(divided_center_RA_deg)
                 divided_center_Dec_list.append(divided_center_Dec_deg)
