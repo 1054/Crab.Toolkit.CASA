@@ -519,8 +519,8 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     for i in range(len(matched_field_indices)):
         field_RA = matched_field_phasecenters[0, i]
         field_Dec = matched_field_phasecenters[1, i]
-        dRA = (center_RA-field_RA)/np.cos(np.deg2rad(field_Dec))
-        dDec = (center_Dec-field_Dec)
+        dRA = np.abs(center_RA-field_RA)/np.cos(np.deg2rad(field_Dec))
+        dDec = np.abs(center_Dec-field_Dec)
         if dRA+pribeam/2. <= imsize_RA_deg/2. and \
            dDec+pribeam/2. <= imsize_Dec_deg/2.:
             # 
