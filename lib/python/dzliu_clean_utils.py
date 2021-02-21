@@ -506,8 +506,8 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     # 
     center_RA = input_RA
     center_Dec = input_Dec
-    imsize_RA_deg = imsize[0]*imcell_arcsec
-    imsize_Dec_deg = imsize[1]*imcell_arcsec
+    imsize_RA_deg = imsize[0]*imcell_arcsec/3600.0
+    imsize_Dec_deg = imsize[1]*imcell_arcsec/3600.0
     # 
     output_field_IDs = []
     matched_field_name, matched_field_indices, matched_field_phasecenters = get_field_phasecenters(vis, galaxy_name=galaxy_name)
