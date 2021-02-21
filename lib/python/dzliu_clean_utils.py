@@ -390,9 +390,11 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                 os.makedirs(os.path.dirname(output_ds9_region_file))
         with open(output_ds9_region_file, 'w') as fp:
             fp.write('fk5\n')
-            fp.write('box(%s,%s,%s",%s",0.0) # text={%s}\n'%(matched_field_center_RA_deg, matched_field_center_Dec_deg, imsize[0]*imcell_arcsec, imsize[1]*imcell_arcsec, vis))
+            fp.write('box(%s,%s,%s",%s",0.0) # text={%s}\n'%(\
+                matched_field_center_RA_deg, matched_field_center_Dec_deg, imsize[0]*imcell_arcsec, imsize[1]*imcell_arcsec, vis))
             for i in range(len(matched_field_indices)):
-                fp.write('circle(%s,%s,%s") # text={%s}\n'%(matched_field_phasecenters[0, i], matched_field_phasecenters[1, i], pribeam*3600./2., matched_field_name))
+                fp.write('circle(%s,%s,%s") # text={%s}\n'%(\
+                    matched_field_phasecenters[0, i], matched_field_phasecenters[1, i], pribeam*3600./2., matched_field_indices[i]))
         if verbose:
             print2('Output to "%s"'%(output_ds9_region_file))
     # 
@@ -514,8 +516,8 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
            field_Dec+pribeam/2. <= center_Dec+imsize_Dec_deg/2.:
             # 
             if verbose:
-                print2('Found field ID %d RA Dec %s %s within half primary beam size of the input mosaic phasecenter %s imsize %s cell %s'%(\
-                    matched_field_indices[i], field_RA, field_Dec, phasecenter, imsize, cell))
+                print2('Found field ID %d RA Dec %s %s within half primary beam size %s of the input mosaic phasecenter %s imsize %s cell %s'%(\
+                    matched_field_indices[i], field_RA, field_Dec, pribeam/2., phasecenter, imsize, cell))
             # 
             output_field_IDs.append(matched_field_indices[i])
     # 
