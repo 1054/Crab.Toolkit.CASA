@@ -73,6 +73,15 @@ def print2(message):
 
 
 # 
+# def print_params
+# 
+def print_params(dict_params, prefix_str):
+    print_str = prefix_str+'('+', '.join("{!s}={!r}".format(k, dict_params[k]) for k in dict_params.keys())+')'
+    print2(print_str)
+
+
+
+# 
 # get datacolumn
 # 
 def get_datacolumn(vis):
@@ -222,6 +231,22 @@ def get_optimized_imsize(imsize, return_decomposed_factors = False):
 
 
 #
+# def get field names
+#
+def get_field_names(vis):
+    """
+    Read the FIELD table of the input measurement set and output all field names.
+    """
+    tb.open(vis+os.sep+'FIELD')
+    field_names = tb.getcol('NAME')
+    field_phasecenters = [tb.getcell(column_name, i) for i in range(tb.nrows())] # rad,rad
+    tb.close()
+    #
+    return field_names
+
+
+
+#
 # def get field phasecenters
 #
 def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
@@ -286,6 +311,8 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
     cell is the same as pixel_size, and overrides pixel_size. 
     pixel_size can be a string or a float number. If it is a float number, a unit of arcsec is assumed.
     """
+    # 
+    casalog.origin('get_mosaic_imsize_and_phasecenter')
     # 
     # get antdiam
     minantdiam = get_antenn_diameter(vis)
@@ -411,6 +438,88 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
         return divided_imsize_list, divided_phasecenter_list
     # 
     return imsize, phasecenter
+
+
+
+# 
+# get field IDs in mosaic
+# 
+def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_freq_Hz=None, galaxy_name='', verbose=True):
+    # 
+    casalog.origin('get_field_IDs_in_mosaic')
+    # 
+    if cell is None or imsize is None or phasecenter is None:
+        print2('Error! cell is None or imsize is None or phasecenter is None!')
+        raise Exception('Error! cell is None or imsize is None or phasecenter is None!')
+    # 
+    input_RA, input_Dec = phasecenter.replace('J2000','').split()
+    if input_RA.endswith('deg'):
+        input_RA = float(input_RA.replace('deg',''))
+    else:
+        try:
+            input_RA = float(input_RA)
+        except:
+            print2('Error! Please input a float number in units of deg for the RA in the input phasecenter!')
+            raise Exception('Error! Please input a float number in units of deg for the RA in the input phasecenter!')
+    if input_Dec.endswith('deg'):
+        input_Dec = float(input_Dec.replace('deg',''))
+    else:
+        try:
+            input_Dec = float(input_Dec)
+        except:
+            print2('Error! Please input a float number in units of deg for the Dec in the input phasecenter!')
+            raise Exception('Error! Please input a float number in units of deg for the Dec in the input phasecenter!')
+    # 
+    # check imsize and make it 2-element list
+    if np.isscalar(imsize):
+        imsize = [imsize]
+    if len(imsize) == 1:
+        imsize = [imsize[0], imsize[0]]
+    # 
+    # get imcell_arcsec (pixel_size) from the given cell
+    pixel_size = re.sub(r'[^0-9.a-zA-Z+-]', r'', str(cell))
+    if re.match(r'^([0-9.eE+-]+)(asec|arcsec)$', pixel_size): 
+        imcell_arcsec = float(re.sub(r'^([0-9.eE+-]+)(asec|arcsec)$', r'\1', pixel_size))
+    elif re.match(r'^([0-9.eE+-]+)(amin|arcmin)$', pixel_size): 
+        imcell_arcsec = float(re.sub(r'^([0-9.eE+-]+)(amin|arcmin)$', r'\1', pixel_size)) * 60.
+    elif re.match(r'^([0-9.eE+-]+)(deg|degree)$', pixel_size): 
+        imcell_arcsec = float(re.sub(r'^([0-9.eE+-]+)(deg|degree)$', r'\1', pixel_size)) * 3600.
+    elif re.match(r'^([0-9.eE+-]+)$', pixel_size): 
+        imcell_arcsec = float(re.sub(r'^([0-9.eE+-]+)$', r'\1', pixel_size)) # in default we assume arcsec unit
+    else:
+        print2('Error! The input pixel_size could not be understood. It should be a string with a unit, e.g. \'1.0arcsec\'.')
+        raise Exception('Error! The input pixel_size could not be understood.')
+    # 
+    # get antdiam
+    minantdiam = get_antenn_diameter(vis)
+    # 
+    # calc primary beam
+    if ref_freq_Hz is None:
+        ref_freq_Hz = get_ref_frequency(vis)
+    pribeam = 1.13  * (2.99792458e8 / ref_freq_Hz / minantdiam / np.pi * 180.0 ) # in units of degrees, see -- https://help.almascience.org/index.php?/Knowledgebase/Article/View/90
+    # 
+    center_RA = input_RA
+    center_Dec = input_Dec
+    imsize_RA_deg = imsize[0]*imcell_arcsec
+    imsize_Dec_deg = imsize[1]*imcell_arcsec
+    # 
+    output_field_IDs = []
+    matched_field_name, matched_field_indices, matched_field_phasecenters = get_field_phasecenters(vis, galaxy_name=galaxy_name)
+    for i in range(len(matched_field_indices)):
+        field_RA = matched_field_phasecenters[0, i]
+        field_Dec = matched_field_phasecenters[1, i]
+        if field_RA-pribeam/2./np.cos(np.deg2rad(field_Dec)) >= center_RA-imsize_RA_deg/2./np.cos(np.deg2rad(field_Dec)) and \
+           field_RA+pribeam/2./np.cos(np.deg2rad(field_Dec)) <= center_RA+imsize_RA_deg/2./np.cos(np.deg2rad(field_Dec)) and \
+           field_Dec-pribeam/2. >= center_Dec-imsize_Dec_deg/2. and \
+           field_Dec+pribeam/2. <= center_Dec+imsize_Dec_deg/2.:
+            # 
+            if verbose:
+                print2('Found field ID %d RA Dec %s %s within half primary beam size of the input mosaic phasecenter %s imsize %s cell %s'%(\
+                    matched_field_indices[i], field_RA, field_Dec, phasecenter, imsize, cell))
+            # 
+            output_field_IDs.append(matched_field_indices[i])
+    # 
+    return output_field_IDs
 
 
 
