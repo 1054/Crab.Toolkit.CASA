@@ -383,8 +383,8 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
         divided_phasecenter_list = []
         for irow in range(nrow):
             for icol in range(ncol):
-                divided_center_RA_deg = (matched_field_max_RA_deg - (matched_field_max_RA_deg - matched_field_min_RA_deg) / (2*ncol) * (2*icol + 1)) \
-                divided_center_Dec_deg = (matched_field_min_Dec_deg + (matched_field_max_Dec_deg - matched_field_min_Dec_deg) / (2*nrow) * (2*irow + 1)) \
+                divided_center_RA_deg = (matched_field_max_RA_deg - (matched_field_max_RA_deg - matched_field_min_RA_deg) / (2*ncol) * (2*icol + 1))
+                divided_center_Dec_deg = (matched_field_min_Dec_deg + (matched_field_max_Dec_deg - matched_field_min_Dec_deg) / (2*nrow) * (2*irow + 1))
                 divided_imsize_RA_deg = imsize_RA_deg / ncol
                 divided_imsize_Dec_deg = imsize_Dec_deg / nrow
                 divided_imsize_RA_deg_padded = divided_imsize_RA_deg + (imsize_RA_deg_padded - imsize_RA_deg)
