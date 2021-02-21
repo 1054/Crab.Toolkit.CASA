@@ -454,6 +454,9 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     # 
     casalog.origin('get_field_IDs_in_mosaic')
     # 
+    if verbose:
+        print2('Getting field IDs inside phasecenter %s imsize %s cell %s in vis %r'%(phasecenter, imsize, cell, vis))
+    # 
     if cell is None or imsize is None or phasecenter is None:
         print2('Error! cell is None or imsize is None or phasecenter is None!')
         raise Exception('Error! cell is None or imsize is None or phasecenter is None!')
