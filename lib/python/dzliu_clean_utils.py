@@ -366,7 +366,8 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
             fp.write('box(%s,%s,%s",%s",0.0) # text={%s}\n'%(matched_field_center_RA_deg, matched_field_center_Dec_deg, imsize[0]*imcell_arcsec, imsize[1]*imcell_arcsec, vis))
             for i in range(len(matched_field_indices)):
                 fp.write('circle(%s,%s,%s") # text={%s}\n'%(matched_field_phasecenters[0, i], matched_field_phasecenters[1, i], pribeam*3600./2., matched_field_name))
-        print('Output to "%s"'%(output_ds9_region_file))
+        if verbose:
+            print2('Output to "%s"'%(output_ds9_region_file))
     # 
     # if the user wants to divide the field into rows and cols, then do that
     if divide_into_ncol_and_nrow is not None:
@@ -376,7 +377,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
             divide_into_ncol_and_nrow = [divide_into_ncol_and_nrow[0], divide_into_ncol_and_nrow[0]]
         ncol = divide_into_ncol_and_nrow[0]
         nrow = divide_into_ncol_and_nrow[1]
-        print('Dividing into ncolxnrow %dx%d'%(ncol, nrow))
+        print2('Dividing into ncolxnrow %dx%d'%(ncol, nrow))
         divided_imsize_list = []
         divided_center_RA_list = []
         divided_center_Dec_list = []
@@ -392,17 +393,21 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                 divided_imsize_RA = divided_imsize_RA_deg_padded / (imcell_arcsec / 3600.0) # pixels
                 divided_imsize_Dec = divided_imsize_Dec_deg_padded / (imcell_arcsec / 3600.0) # pixels
                 divided_imsize = [int(np.ceil(divided_imsize_RA)), int(np.ceil(divided_imsize_Dec))]
+                divided_phasecenter = 'J2000 %.10fdeg %.10fdeg'%(divided_center_RA_deg, divided_center_Dec_deg)
                 divided_imsize_list.append(divided_imsize)
                 divided_center_RA_list.append(divided_center_RA_deg)
                 divided_center_Dec_list.append(divided_center_Dec_deg)
-                divided_phasecenter_list.append('J2000 %.10fdeg %.10fdeg'%(divided_center_RA_deg, divided_center_Dec_deg))
+                divided_phasecenter_list.append(divided_phasecenter)
+                if verbose:
+                    print2('icol %d irow %d phasecenter %s imsize %sx%s'%(icol, irow, divided_phasecenter, divided_imsize[0], divided_imsize[1]))
         if output_ds9_region_file != '':
             with open(output_ds9_region_file, 'a') as fp:
                 for i in range(len(divided_imsize_list)):
                     fp.write('box(%s,%s,%s",%s",0.0) # text={divided mosaic}\n'%(\
                         divided_center_RA_list[i], divided_center_Dec_list[i], 
                         divided_imsize_list[i][0]*imcell_arcsec, divided_imsize_list[i][1]*imcell_arcsec))
-            print('Output divided mosaic regions to "%s"'%(output_ds9_region_file))
+            if verbose:
+                print2('Output divided mosaic regions to "%s"'%(output_ds9_region_file))
         return divided_imsize_list, divided_phasecenter_list
     # 
     return imsize, phasecenter
