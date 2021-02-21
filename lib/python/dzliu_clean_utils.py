@@ -519,14 +519,15 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     for i in range(len(matched_field_indices)):
         field_RA = matched_field_phasecenters[0, i]
         field_Dec = matched_field_phasecenters[1, i]
-        if field_RA-pribeam/2./np.cos(np.deg2rad(field_Dec)) >= center_RA-imsize_RA_deg/2./np.cos(np.deg2rad(field_Dec)) and \
-           field_RA+pribeam/2./np.cos(np.deg2rad(field_Dec)) <= center_RA+imsize_RA_deg/2./np.cos(np.deg2rad(field_Dec)) and \
-           field_Dec-pribeam/2. >= center_Dec-imsize_Dec_deg/2. and \
-           field_Dec+pribeam/2. <= center_Dec+imsize_Dec_deg/2.:
+        dRA = (center_RA-field_RA)/np.cos(np.deg2rad(field_Dec))
+        dDec = (center_Dec-field_Dec)
+        if dRA+pribeam/2. <= imsize_RA_deg/2. and \
+           dDec+pribeam/2. <= imsize_Dec_deg/2.:
             # 
             if verbose:
-                print2('Found field ID %d RA Dec %s %s within half primary beam size %s of the input mosaic RA Dec %s %s FoV %s %s phasecenter %s imsize %s cell %s'%(\
-                    matched_field_indices[i], field_RA, field_Dec, pribeam/2., center_RA, center_Dec, imsize_RA_deg, imsize_Dec_deg, phasecenter, imsize, cell))
+                print2('Found field ID %d RA Dec %s %s within half primary beam size %s of the input mosaic RA Dec %s %s (offset %s %s) FoV %s %s phasecenter %s imsize %s cell %s'%(\
+                    matched_field_indices[i], field_RA, field_Dec, pribeam/2., center_RA, center_Dec, dRA, dDec, 
+                    imsize_RA_deg, imsize_Dec_deg, phasecenter, imsize, cell))
             # 
             output_field_IDs.append(matched_field_indices[i])
     # 
