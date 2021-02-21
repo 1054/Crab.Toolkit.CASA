@@ -356,10 +356,10 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
             if not os.path.isdir(os.path.dirname(output_ds9_region_file)):
                 os.makedirs(os.path.dirname(output_ds9_region_file))
         with open(output_ds9_region_file, 'w') as fp:
-            fp.write('fk5')
-            fp.write('box(%s,%s,%s",%s",0.0)\n'%(matched_field_center_RA_deg, matched_field_center_Dec_deg, imsize[0]*imcell_arcsec, imsize[1]*imcell_arcsec))
+            fp.write('fk5\n')
+            fp.write('box(%s,%s,%s",%s",0.0) # text={%s}\n'%(matched_field_center_RA_deg, matched_field_center_Dec_deg, imsize[0]*imcell_arcsec, imsize[1]*imcell_arcsec, vis))
             for i in range(len(matched_field_indices)):
-                fp.write('circle(%s,%s,%s") # text={%s}\n'%(matched_field_phasecenters[0, i], matched_field_phasecenters[1, i], imcell_arcsec*2.5, matched_field_name))
+                fp.write('circle(%s,%s,%s") # text={%s}\n'%(matched_field_phasecenters[0, i], matched_field_phasecenters[1, i], pribeam*3600./2., matched_field_name))
         print('Output to "%s"'%(output_ds9_region_file))
     # 
     return imsize, phasecenter
