@@ -11,6 +11,7 @@
 # 
 # Notes:
 #     20200312: numpy too old in CASA 5. np.full not there yet. 
+#     20210218: added max_imsize, restoringbeam='common'
 # 
 from __future__ import print_function
 import os, sys, re, json, copy, timeit, shutil
@@ -44,9 +45,13 @@ if version_less_than(casadef.casa_version, '6.0.0'):
     split = split_cli_()
     from imstat_cli import imstat_cli_
     imstat = imstat_cli_()
+    from impbcor_cli import impbcor_cli_
+    impbcor = impbcor_cli_()
+    from imsmooth_cli import imsmooth_cli_
+    imsmooth = imsmooth_cli_()
 else:
     # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
-    from casatasks import tclean, mstransform, exportfits, concat, split, imstat
+    from casatasks import tclean, mstransform, exportfits, concat, split, imstat, impbcor, imsmooth
     #from casatasks import sdbaseline
     #from casatools import ia
 
@@ -255,23 +260,32 @@ def get_antenn_diameter(vis):
 
 # 
 # def get field phasecenters
-# 
-def get_field_phasecenters(vis, galaxy_name):
-    # 
+#
+def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
+    """
+    Get Measurement Set phase centers ('DELAY_DIR'). 
+    
+    Return 3 lists: matched_field_name, matched_field_indices, and matched_field_phasecenters. 
+    
+    The 3rd return is a list of two lists: a RA_deg and a Dec_deg list.
+    
+    If galaxy_name is '', then all field phase centers will be returned.
+    """
+    #
     # Requires CASA module/function tb.
-    # 
+    #
     casalog.origin('get_field_phasecenters')
-    # 
+    #
     tb.open(vis+os.sep+'FIELD')
     field_names = tb.getcol('NAME')
-    field_phasecenters = [tb.getcell('DELAY_DIR', i) for i in range(tb.nrows())] # rad,rad
+    field_phasecenters = [tb.getcell(column_name, i) for i in range(tb.nrows())] # rad,rad
     tb.close()
-    # 
+    #
     if galaxy_name != '':
         galaxy_name_cleaned = re.sub(r'[^a-zA-Z0-9]', r'', galaxy_name).lower() #<TODO># What if someone use "_" as a field name?
     else:
         galaxy_name_cleaned = '' # if the user has input an empty string, then we will get all fields in this vis data.
-    # 
+    #
     matched_field_name = ''
     matched_field_indices = []
     matched_field_phasecenters = []
@@ -289,10 +303,10 @@ def get_field_phasecenters(vis, galaxy_name):
             matched_field_name = field_name
             matched_field_indices.append(i)
             matched_field_phasecenters.append([field_RA_deg, field_Dec_deg])
-    # 
+    #
     if '' == matched_field_name:
         raise ValueError('Error! Target source %s was not found in the "FIELD" table of the input vis "%s"!'%(galaxy_name, vis))
-    # 
+    #
     matched_field_indices = np.array(matched_field_indices)
     matched_field_phasecenters = np.array(matched_field_phasecenters).T # two columns, nrows
     return matched_field_name, matched_field_indices, matched_field_phasecenters
@@ -796,7 +810,7 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
     mstransform_parameters['outframe'] = 'LSRK'
     mstransform_parameters['veltype'] = 'radio'
     mstransform_parameters['timeaverage'] = True
-    mstransform_parameters['timebin'] = '60s'
+    mstransform_parameters['timebin'] = '30s'
     # 
     # Reset tclean parameters
     # 
@@ -853,7 +867,7 @@ def arcsec2float(arcsec_str):
 # 
 def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter = 30000, calcres = True, calcpsf = True, 
                              phasecenter = '', field = '', pbmask = 0.2, pblimit = 0.1, threshold = 0.0, specmode = 'cube', 
-                             beamsize = ''):
+                             beamsize = '', max_imsize = None):
     # 
     # Requires CASA module/function tb.
     # 
@@ -964,10 +978,9 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
             L80uvdist = np.percentile(uvdist, 80) # np.max(uvdist) # now I am using 90-th percentile of baselies, same as used by 'analysisUtils.py' pickCellSize() getBaselineStats(..., percentile=...)
             print2('L80uvdist = %s [m] (80-th percentile)'%(L80uvdist))
             # 
-            #synbeam = 2.99792458e8 / ref_freq_Hz / maxuvdist / np.pi * 180.0 * 3600.0 # arcsec
+            synbeam = 2.99792458e8 / ref_freq_Hz / maxuvdist / np.pi * 180.0 * 3600.0 # arcsec
             synbeam = 0.574 * 2.99792458e8 / ref_freq_Hz / L80uvdist / np.pi * 180.0 * 3600.0 # arcsec # .574lambda/L80, see 'analysisUtils.py' estimateSynthesizedBeamFromASDM()
-            synbeam = synbeam * 1.2 #<TODO># some output results show that the beam is smaller as expected, so here we enlarge it a little bit.
-            synbeam_nprec = 2 # keep 2 valid decimal points
+            synbeam_nprec = 2 # keep 2 valid 
             synbeam_ndigits = (synbeam_nprec-1) - int(np.floor(np.log10(synbeam))) # keep to these digits (precision) after point, e.g., 0.1523 -> nprec 2 -> round(0.1523*100)/100 = 0.15
             synbeam = (np.round(synbeam * 10**(synbeam_ndigits))) / 10**(synbeam_ndigits)
             oversampling = 5.0
@@ -1018,6 +1031,19 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
     # 
     print2('imsize = %s'%(imsize))
     # 
+    if max_imsize is not None:
+        if np.isscalar(max_imsize):
+            max_imsize = [max_imsize, max_imsize]
+        else:
+            if len(max_imsize) == 1:
+                max_imsize = [max_imsize[0], max_imsize[0]]
+        if imsize[0] > max_imsize[0]:
+            imsize[0] = max_imsize[0]
+            print2('imsize[0] = %s, as limited by max_imsize[0] %s.'%(imsize[0], max_imsize[0]))
+        if imsize[1] > max_imsize[1]:
+            imsize[1] = max_imsize[1]
+            print2('imsize[1] = %s, as limited by max_imsize[1] %s.'%(imsize[1], max_imsize[1]))
+    # 
     # We can also use analysisUtils, but the results are very similar to my above implementation.
     # 
     #au_cellsize, au_imsize, au_centralField = au.pickCellSize(vis, imsize=True, npix=5)
@@ -1046,7 +1072,7 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
     clean_parameters['pblimit'] = pblimit # data outside this pblimit will be output as NaN
     clean_parameters['pbcor'] = True # create both pbcorrected and uncorrected images
     clean_parameters['restoration'] = True
-    clean_parameters['restoringbeam'] = '%sarcsec'%(synbeam) # Automatically estimate a common beam shape/size appropriate for all planes.
+    clean_parameters['restoringbeam'] = 'common' # '%sarcsec'%(synbeam) # Automatically estimate a common beam shape/size appropriate for all planes.
     #clean_parameters['weighting'] = 'briggs'
     #clean_parameters['robust'] = '2.0' # robust = -2.0 maps to A=1,B=0 or uniform weighting. robust = +2.0 maps to natural weighting. (robust=0.5 is equivalent to robust=0.0 in AIPS IMAGR.)
     clean_parameters['nterms'] = 1 # nterms must be ==1 when deconvolver='hogbom' is chosen
@@ -1635,6 +1661,7 @@ def dzliu_clean(dataset_ms,
                 line_velocity_resolution = None, 
                 continuum_clean_threshold = 3.5, 
                 line_clean_threshold = 3.5, 
+                max_imsize = None, 
                 overwrite = False):
     # 
     casalog.origin('dzliu_clean')
@@ -1720,7 +1747,7 @@ def dzliu_clean(dataset_ms,
         split_line_visibilities(dataset_ms, line_ms, galaxy_name, line_name[i], line_velocity[i], line_velocity_width[i], line_velocity_resolution[i])
         # 
         # Make dirty image
-        make_dirty_image(line_ms, line_dirty_cube, phasecenter = phasecenter, beamsize = beamsize)
+        make_dirty_image(line_ms, line_dirty_cube, phasecenter = phasecenter, beamsize = beamsize, max_imsize = max_imsize)
         #
         # Compute rms in the dirty image
         result_imstat_dict = imstat(line_dirty_cube+'.image')
@@ -1735,7 +1762,7 @@ def dzliu_clean(dataset_ms,
             threshold = result_imstat_dict['rms'][0] * line_clean_threshold #<TODO># 3-sigma
             # 
             # Make clean image
-            make_clean_image(line_ms, line_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize)
+            make_clean_image(line_ms, line_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize, max_imsize = max_imsize)
     
     # 
     # Make continuum image
@@ -1759,7 +1786,7 @@ def dzliu_clean(dataset_ms,
         split_continuum_visibilities(dataset_ms, continuum_ms, galaxy_name, galaxy_redshift = galaxy_redshift, line_name = line_name, line_velocity = line_velocity, line_velocity_width = line_velocity_width)
         # 
         # Make continuum
-        make_dirty_image_of_continuum(continuum_ms, continuum_dirty_cube, phasecenter = phasecenter, beamsize = beamsize)
+        make_dirty_image_of_continuum(continuum_ms, continuum_dirty_cube, phasecenter = phasecenter, beamsize = beamsize, max_imsize = max_imsize)
         #
         # Compute rms in the dirty image
         result_imstat_dict = imstat(continuum_dirty_cube+'.image')
@@ -1773,7 +1800,7 @@ def dzliu_clean(dataset_ms,
             threshold = result_imstat_dict['rms'][0] * continuum_clean_threshold #<TODO># 3.5-sigma
             # 
             # Make clean image of the rough continuum 
-            make_clean_image_of_continuum(continuum_ms, continuum_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize)
+            make_clean_image_of_continuum(continuum_ms, continuum_clean_cube, phasecenter = phasecenter, threshold = threshold, pblimit = 0.05, pbmask = 0.05, beamsize = beamsize, max_imsize = max_imsize)
 
 
 
