@@ -399,7 +399,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                 for i in range(len(divided_imsize_list)):
                     fp.write('box(%s,%s,%s",%s",0.0) # text={divided mosaic}\n'%(\
                         divided_center_RA_list[i], divided_center_Dec_list[i], 
-                        divided_imsize[i][0]*imcell_arcsec, divided_imsize[i][1]*imcell_arcsec))
+                        divided_imsize_list[i][0]*imcell_arcsec, divided_imsize_list[i][1]*imcell_arcsec))
             print('Output divided mosaic regions to "%s"'%(output_ds9_region_file))
         return divided_imsize_list, divided_phasecenter_list
     # 
