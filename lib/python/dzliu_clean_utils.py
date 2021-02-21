@@ -249,11 +249,11 @@ def get_field_names(vis):
 #
 # def get field phasecenters
 #
-def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
+def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR', return_all_names = False):
     """
     Get Measurement Set phase centers ('DELAY_DIR'). 
     
-    Return 3 lists: matched_field_name, matched_field_indices, and matched_field_phasecenters. 
+    Return 1 string and 2 lists: matched_field_name, matched_field_indices, and matched_field_phasecenters. 
     
     The 3rd return is a list of two lists: a RA_deg and a Dec_deg list.
     
@@ -275,6 +275,7 @@ def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
         galaxy_name_cleaned = '' # if the user has input an empty string, then we will get all fields in this vis data.
     #
     matched_field_name = ''
+    matched_field_names = []
     matched_field_indices = []
     matched_field_phasecenters = []
     for i, field_name in enumerate(field_names):
@@ -289,6 +290,7 @@ def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
         field_Dec_deg = field_Dec_rad / np.pi * 180.0
         if galaxy_name_cleaned == '' or field_name_cleaned.startswith(galaxy_name_cleaned):
             matched_field_name = field_name
+            matched_field_names.append(field_name)
             matched_field_indices.append(i)
             matched_field_phasecenters.append([field_RA_deg, field_Dec_deg])
     #
@@ -297,6 +299,8 @@ def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
     #
     matched_field_indices = np.array(matched_field_indices)
     matched_field_phasecenters = np.array(matched_field_phasecenters).T # two columns, nrows
+    if return_all_names:
+        return matched_field_names, matched_field_indices, matched_field_phasecenters
     return matched_field_name, matched_field_indices, matched_field_phasecenters
 
 
@@ -507,6 +511,11 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     # 
     output_field_IDs = []
     matched_field_name, matched_field_indices, matched_field_phasecenters = get_field_phasecenters(vis, galaxy_name=galaxy_name)
+    if verbose:
+        if galaxy_name != '':
+            print2('Found %d fields with galaxy_name %r in the input ms %r'%(len(matched_field_indices), galaxy_name, vis))
+        else:
+            print2('Found %d fields in the input ms %r'%(len(matched_field_indices), vis))
     for i in range(len(matched_field_indices)):
         field_RA = matched_field_phasecenters[0, i]
         field_Dec = matched_field_phasecenters[1, i]
@@ -516,8 +525,8 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
            field_Dec+pribeam/2. <= center_Dec+imsize_Dec_deg/2.:
             # 
             if verbose:
-                print2('Found field ID %d RA Dec %s %s within half primary beam size %s of the input mosaic phasecenter %s imsize %s cell %s'%(\
-                    matched_field_indices[i], field_RA, field_Dec, pribeam/2., phasecenter, imsize, cell))
+                print2('Found field ID %d RA Dec %s %s within half primary beam size %s of the input mosaic RA Dec %s %s FoV %s %s phasecenter %s imsize %s cell %s'%(\
+                    matched_field_indices[i], field_RA, field_Dec, pribeam/2., center_RA, center_Dec, imsize_RA_deg, imsize_Dec_deg, phasecenter, imsize, cell))
             # 
             output_field_IDs.append(matched_field_indices[i])
     # 
