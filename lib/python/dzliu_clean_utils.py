@@ -450,7 +450,13 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
 # 
 # get field IDs in mosaic
 # 
-def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_freq_Hz=None, galaxy_name='', verbose=True):
+def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_freq_Hz=None, galaxy_name='', padding_by_primary_beam=0.75, verbose=True):
+    """
+    padding_by_primary_beam should correspond to the pblimit. pblimit 0.2 means padding_by_primary_beam 1.5/2.=0.75. 
+    Here we choose a padding_by_primary_beam of 0.8, which means we require the field center must be within the input field of view and
+    has a distance to the edges of at least 0.8 primary beam. This makes sure all field pointings are within the input field of view, 
+    even for a small pblimit (0.2). 
+    """
     # 
     casalog.origin('get_field_IDs_in_mosaic')
     # 
@@ -522,11 +528,11 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     for i in range(len(matched_field_indices)):
         field_RA = matched_field_phasecenters[0, i]
         field_Dec = matched_field_phasecenters[1, i]
-        dRA = np.abs(center_RA-field_RA)/np.cos(np.deg2rad(field_Dec))
+        dRA = np.abs(center_RA-field_RA)*np.cos(np.deg2rad(field_Dec))
         dDec = np.abs(center_Dec-field_Dec)
-        # we must make sure the whole field pribeam is inside the imsize, otherwise tclean will be wrapped at the edge when there are data outside the FoV.
-        if dRA < imsize_RA_deg/2-pribeam/2. and \
-           dDec < imsize_Dec_deg/2.-pribeam/2.:
+        # we must make sure the whole field 1.5*pribeam (pblimit=0.2) is inside the imsize, otherwise tclean will be wrapped at the edge when there are data outside the FoV.
+        if dRA < imsize_RA_deg/2.-pribeam*padding_by_primary_beam and \
+           dDec < imsize_Dec_deg/2.-pribeam*padding_by_primary_beam:
             # 
             if verbose:
                 print2('Found field ID %d RA Dec %s %s with half primary beam size %s inside the input mosaic RA Dec %s %s (offset %s %s) FoV %s %s phasecenter %s imsize %s cell %s'%(\

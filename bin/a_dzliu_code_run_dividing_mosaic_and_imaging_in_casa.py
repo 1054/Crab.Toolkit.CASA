@@ -19,6 +19,7 @@ Target_names = ['Tune147']
 ncol = 5
 nrow = 10
 imcell = '0.25arcsec'
+dry_run = False
 
 
 # def print2
@@ -55,35 +56,56 @@ for DataSet_dir, DataSet_name, Target_name in list(zip(DataSet_dirs, DataSet_nam
     print2('DataSet: '+DataSet_name)
     
     # 
-    imsize_list, phasecenter_list = get_mosaic_imsize_and_phasecenter(vis, imcell, galaxy_name=field, divide_into_ncol_and_nrow=(ncol,nrow))
-    #raise NotImplementedError()
+    imsize_list, phasecenter_list = get_mosaic_imsize_and_phasecenter(vis, imcell, galaxy_name=field, divide_into_ncol_and_nrow=(ncol,nrow), padding_by_primary_beam=1.5)
+    if dry_run:
+        raise NotImplementedError('This is a dry run.')
 
     # loop to make divided mosaic
     for i in range(len(imsize_list)):
         field_IDs = get_field_IDs_in_mosaic(vis, cell=imcell, imsize=imsize_list[i], phasecenter=phasecenter_list[i], galaxy_name=field)
-        outputvis = 'Level_3_Divide_Mosaic/%s_Mosaic_%d_%d.ms'%(DataSet_name, i%ncol, int(i/ncol))
+        if len(field_IDs) == 0:
+            continue
+        outputvis = 'Level_3_Split_Divide_Mosaic/%s_Mosaic_%d_%d.ms'%(DataSet_name, i%ncol, int(i/ncol))
         if not os.path.isdir(os.path.dirname(outputvis)):
             os.makedirs(os.path.dirname(outputvis))
-        split_params = {}
-        split_params['vis'] = vis
-        split_params['outputvis'] = outputvis
-        split_params['field'] = ','.join([str(t) for t in field_IDs])
-        split_params['datacolumn'] = get_datacolumn(vis)
-        print_params(split_params, 'split')
-        split(**split_params)
+        if not os.path.isdir(outputvis):
+            split_params = {}
+            split_params['vis'] = vis
+            split_params['outputvis'] = outputvis
+            split_params['field'] = ','.join([str(t) for t in field_IDs])
+            split_params['datacolumn'] = get_datacolumn(vis)
+            print_params(split_params, 'split')
+            split(**split_params)
         if not os.path.isdir(outputvis):
             raise Exception('Error! Failed to run split!')
-        break
+        #break
+    
+    # loop to fixvis
+    for i in range(len(imsize_list)):
+        vis = 'Level_3_Split_Divide_Mosaic/%s_Mosaic_%d_%d.ms'%(DataSet_name, i%ncol, int(i/ncol))
+        outputvis = 'Level_3_Split_Divide_Mosaic/%s_Mosaic_%d_%d.fixvis.ms'%(DataSet_name, i%ncol, int(i/ncol))
+        if not os.path.isdir(vis):
+            continue
+        if not os.path.isdir(outputvis):
+            fixvis_params = {}
+            fixvis_params['vis'] = vis
+            fixvis_params['outputvis'] = outputvis
+            fixvis_params['field'] = field
+            fixvis_params['phasecenter'] = phasecenter_list[i]
+            print_params(fixvis_params, 'fixvis')
+            fixvis(**fixvis_params)
 
     # loop to run tclean
     for i in range(len(imsize_list)):
-        vis = 'Level_3_Divide_Mosaic/%s_Mosaic_%d_%d.ms'%(DataSet_name, i%ncol, int(i/ncol))
-        imagename = 'Level_4_Data_Images_Divide_Mosaic/%s_Mosaic_%d_%d/output_%s_dirty'%(DataSet_name, i%ncol, int(i/ncol), Target_name)
+        vis = 'Level_3_Split_Divide_Mosaic/%s_Mosaic_%d_%d.fixvis.ms'%(DataSet_name, i%ncol, int(i/ncol))
+        imagename = 'Level_4_Data_Images_Divide_Mosaic/%s_Mosaic_%d_%d/output_%s_dirty'%(DataSet_name, i%ncol, int(i/ncol), field)
+        if not os.path.isdir(vis):
+            continue
         if not os.path.isdir(os.path.dirname(imagename)):
             os.makedirs(os.path.dirname(imagename))
         if not os.path.isdir(imagename+'.image'):
             clean_params['vis'] = vis
-            clean_params['field'] = Target_name
+            clean_params['field'] = field
             clean_params['phasecenter'] = phasecenter_list[i]
             clean_params['cell'] = imcell
             clean_params['imsize'] = imsize_list[i]
@@ -99,7 +121,7 @@ for DataSet_dir, DataSet_name, Target_name in list(zip(DataSet_dirs, DataSet_nam
                 export_tclean_products_as_fits_files(imagename, velocity=False)
             if not os.path.isfile(imagename+'.image.pbcor.fits'):
                 apply_pbcor_to_tclean_image(imagename, velocity=False)
-        break
+        #break
 
 
 print('Done!')
