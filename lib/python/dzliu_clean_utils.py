@@ -412,6 +412,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
         nrow = divide_into_ncol_and_nrow[1]
         print2('Dividing into ncolxnrow %dx%d'%(ncol, nrow))
         divided_imsize_list = []
+        divided_imsize_unpadded_list = []
         divided_center_RA_list = []
         divided_center_Dec_list = []
         divided_phasecenter_list = []
@@ -425,9 +426,13 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                 divided_imsize_Dec_deg_padded = divided_imsize_Dec_deg + (imsize_Dec_deg_padded - imsize_Dec_deg)
                 divided_imsize_RA = divided_imsize_RA_deg_padded / (imcell_arcsec / 3600.0) # pixels
                 divided_imsize_Dec = divided_imsize_Dec_deg_padded / (imcell_arcsec / 3600.0) # pixels
+                divided_imsize_RA_unpadded = divided_imsize_RA_deg / (imcell_arcsec / 3600.0) # pixels, unpadded core size
+                divided_imsize_Dec_unpadded = divided_imsize_Dec_deg / (imcell_arcsec / 3600.0) # pixels, unpadded core size
                 divided_imsize = [int(np.ceil(divided_imsize_RA)), int(np.ceil(divided_imsize_Dec))]
+                divided_imsize_unpadded = [int(np.ceil(divided_imsize_RA_unpadded)), int(np.ceil(divided_imsize_Dec_unpadded))]
                 divided_phasecenter = 'J2000 %.10fdeg %.10fdeg'%(divided_center_RA_deg, divided_center_Dec_deg)
                 divided_imsize_list.append(divided_imsize)
+                divided_imsize_unpadded_list.append(divided_imsize_unpadded)
                 divided_center_RA_list.append(divided_center_RA_deg)
                 divided_center_Dec_list.append(divided_center_Dec_deg)
                 divided_phasecenter_list.append(divided_phasecenter)
@@ -436,9 +441,14 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
         if output_ds9_region_file != '':
             with open(output_ds9_region_file, 'a') as fp:
                 for i in range(len(divided_imsize_list)):
-                    fp.write('box(%s,%s,%s",%s",0.0) # text={divided mosaic}\n'%(\
+                    icol = i%ncol
+                    irow = int(i/ncol)
+                    fp.write('box(%s,%s,%s",%s",0.0) # text={divided mosaic %d %d}\n'%(\
                         divided_center_RA_list[i], divided_center_Dec_list[i], 
-                        divided_imsize_list[i][0]*imcell_arcsec, divided_imsize_list[i][1]*imcell_arcsec))
+                        divided_imsize_list[i][0]*imcell_arcsec, divided_imsize_list[i][1]*imcell_arcsec, icol, irow))
+                    fp.write('box(%s,%s,%s",%s",0.0) # text={divided mosaic %d %d} dash=1\n'%(\
+                        divided_center_RA_list[i], divided_center_Dec_list[i], 
+                        divided_imsize_unpadded_list[i][0]*imcell_arcsec, divided_imsize_unpadded_list[i][1]*imcell_arcsec, icol, irow))
             if verbose:
                 print2('Output divided mosaic regions to "%s"'%(output_ds9_region_file))
         return divided_imsize_list, divided_phasecenter_list
