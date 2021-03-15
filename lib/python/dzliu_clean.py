@@ -12,6 +12,7 @@
 # Notes:
 #     20200312: numpy too old in CASA 5. np.full not there yet. 
 #     20210218: added max_imsize, restoringbeam='common'
+#     20210315: added fix_zero_rest_frequency
 # 
 from __future__ import print_function
 import os, sys, re, json, copy, timeit, shutil
@@ -328,6 +329,40 @@ def get_datacolumn(vis):
     tb.close()
     # 
     return datacolumn
+
+
+
+
+def fix_zero_rest_frequency(vis):
+    # 
+    # Requires CASA module/function tb.
+    # 
+    casalog.origin('fix_zero_rest_frequency')
+    # 
+    do_fix_zero_rest_frequency = False
+    tb.open(vis+os.sep+'SOURCE')
+    if 'REST_FREQUENCY' in tb.colnames():
+        if np.any(np.isclose(tb.getcol('REST_FREQUENCY'), 0)):
+            do_fix_zero_rest_frequency = True
+    tb.close()
+    # 
+    if do_fix_zero_rest_frequency:
+        print2('Found zero REST_FREQUENCY in %s/SOURCE table. Fixing zero rest frequency.'%(vis))
+        #ref_frequency_list = None
+        #ref_frequency = np.nan
+        tb.open(vis+os.sep+'SPECTRAL_WINDOW')
+        ref_frequency_list = tb.getcol('REF_FREQUENCY')
+        ref_frequency = np.nanmean(ref_frequency_list)
+        tb.close()
+        # 
+        tb.open(vis+os.sep+'SOURCE', nomodify=False)
+        for i in range(tb.nrows()):
+            if np.isclose(tb.getcell('REST_FREQUENCY', i), 0):
+                tb.putcell('REST_FREQUENCY', i, ref_frequency)
+                print2('Fixing vis/SOURCE table row %d REST_FREQUENCY to %s'%(i, ref_frequency))
+        tb.close()
+    # 
+    return
     
 
 
@@ -1662,6 +1697,7 @@ def dzliu_clean(dataset_ms,
                 continuum_clean_threshold = 3.5, 
                 line_clean_threshold = 3.5, 
                 max_imsize = None, 
+                skip_split = False, 
                 overwrite = False):
     # 
     casalog.origin('dzliu_clean')
@@ -1726,6 +1762,10 @@ def dzliu_clean(dataset_ms,
         #--> if user has input make_continuum then not necessary to input line info
     
     # 
+    # 20210315 fix zero rest frequency
+    fix_zero_rest_frequency(dataset_ms)
+    
+    # 
     # Make line cube
     for i in range(num_lines):
         # 
@@ -1743,8 +1783,17 @@ def dzliu_clean(dataset_ms,
                     if os.path.isfile(check_dir+check_type+'.fits'):
                         os.remove(check_dir+check_type+'.fits')
         # 
-        # Split line data and make channel averaging
-        split_line_visibilities(dataset_ms, line_ms, galaxy_name, line_name[i], line_velocity[i], line_velocity_width[i], line_velocity_resolution[i])
+        # Check if skipping split
+        if skip_split:
+            if os.path.isdir(line_ms):
+                if os.path.isdir(line_ms+'.backup'):
+                    shutil.rmtree(line_ms+'.backup')
+                shutil.move(line_ms, line_ms+'.backup')
+            shutil.copytree(dataset_ms, line_ms)
+        else:
+            # 
+            # Split line data and make channel averaging
+            split_line_visibilities(dataset_ms, line_ms, galaxy_name, line_name[i], line_velocity[i], line_velocity_width[i], line_velocity_resolution[i])
         # 
         # Make dirty image
         make_dirty_image(line_ms, line_dirty_cube, phasecenter = phasecenter, beamsize = beamsize, max_imsize = max_imsize)
@@ -1782,8 +1831,17 @@ def dzliu_clean(dataset_ms,
                     if os.path.isfile(check_dir+check_type+'.fits'):
                         os.remove(check_dir+check_type+'.fits')
         # 
-        # we need to find out line-free channels
-        split_continuum_visibilities(dataset_ms, continuum_ms, galaxy_name, galaxy_redshift = galaxy_redshift, line_name = line_name, line_velocity = line_velocity, line_velocity_width = line_velocity_width)
+        # Check if skipping split
+        if skip_split:
+            if os.path.isdir(continuum_ms):
+                if os.path.isdir(continuum_ms+'.backup'):
+                    shutil.rmtree(continuum_ms+'.backup')
+                shutil.move(continuum_ms, continuum_ms+'.backup')
+            shutil.copytree(dataset_ms, continuum_ms)
+        else:
+            # 
+            # we need to find out line-free channels
+            split_continuum_visibilities(dataset_ms, continuum_ms, galaxy_name, galaxy_redshift = galaxy_redshift, line_name = line_name, line_velocity = line_velocity, line_velocity_width = line_velocity_width)
         # 
         # Make continuum
         make_dirty_image_of_continuum(continuum_ms, continuum_dirty_cube, phasecenter = phasecenter, beamsize = beamsize, max_imsize = max_imsize)
