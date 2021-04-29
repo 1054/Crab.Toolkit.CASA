@@ -594,7 +594,7 @@ def get_synbeam_and_imcell(vis, ref_freq_Hz = None, oversampling = 5.0):
 #
 # def get spw for spectral line
 #
-def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width_kms=None, return_dict=False, verbose=True):
+def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width_kms=None, exclude_continuum_spw=True, return_dict=False, verbose=True):
     #
     casalog.origin('get_spw_for_spectral_line')
     # 
@@ -631,8 +631,11 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
         ch0 = spw_chan_freq[i] # 
         chstep = spw_chan_width[i] # 
         chlast = ch0 + (nchan-1.) * chstep
+        is_continuum_spw = ((nchan <= 4) or chstep>=31.25e6)
         if verbose:
-            print2('spw %s, ch0 %s, chlast %s, chstep %s, nchan %s'%(i, ch0, chlast, chstep, nchan))
+            print2('spw %s, ch0 %s, chlast %s, chstep %s, nchan %s, is_continuum_spw %s'%(i, ch0, chlast, chstep, nchan, is_continuum_spw))
+        if exclude_continuum_spw and is_continuum_spw:
+            continue
         if (line_freq_range_Hz[1] > min(ch0, chlast)) and (line_freq_range_Hz[0] < max(ch0, chlast)) and nchan > 1:
             if chstep > 0:
                 # line in spw
@@ -674,6 +677,7 @@ def get_mstransform_params_for_spectral_line(
         line_width_kms=None, 
         chan_width_kms=None, 
         force_integer_chan_width=True, 
+        exclude_continuum_spw=True,
         verbose=True, 
     ):
     #
@@ -703,23 +707,30 @@ def get_mstransform_params_for_spectral_line(
     # 
     mstransform_params = {}
     # 
-    spw_selection_str, spw_selection_dict = get_spw_for_spectral_line(vis, redshift=redshift, rest_freq_GHz=rest_freq_GHz, line_width_kms=line_width_kms, return_dict=True)
+    spw_selection_str, spw_selection_dict = get_spw_for_spectral_line(\
+        vis, redshift=redshift, rest_freq_GHz=rest_freq_GHz, line_width_kms=line_width_kms, 
+        exclude_continuum_spw=exclude_continuum_spw, 
+        return_dict=True, 
+        )
     # 
     output_chan_width_MHz = (chan_width_kms/2.99792458e5*line_freq_MHz)
+    # 
+    # check channel width to be the same
+    chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
+    if verbose:
+        print2('chan_width_MHz: %s, spw_selection_dict: %s'%(chan_width_MHz, spw_selection_dict))
+    chan_width_MHz = np.abs(chan_width_MHz)
+    min_chan_width_MHz = chan_width_MHz[0]
+    for i,ispw in enumerate(list(spw_selection_dict.keys())):
+        if chan_width_MHz[i] > output_chan_width_MHz:
+            if verbose:
+                print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, chan_width_MHz[i], output_chan_width_MHz))
+            del spw_selection_dict[ispw]
+        else:
+            if min_chan_width_MHz > chan_width_MHz[i]:
+                min_chan_width_MHz = chan_width_MHz[i]
+    # 
     if force_integer_chan_width:
-        chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
-        if verbose:
-            print2('chan_width_MHz: %s, spw_selection_dict: %s'%(chan_width_MHz, spw_selection_dict))
-        chan_width_MHz = np.abs(chan_width_MHz)
-        min_chan_width_MHz = chan_width_MHz[0]
-        for i,ispw in enumerate(list(spw_selection_dict.keys())):
-            if chan_width_MHz[i] > output_chan_width_MHz:
-                if verbose:
-                    print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, chan_width_MHz[i], output_chan_width_MHz))
-                del spw_selection_dict[ispw]
-            else:
-                if min_chan_width_MHz > chan_width_MHz[i]:
-                    min_chan_width_MHz = chan_width_MHz[i]
         output_chan_width_MHz = np.round(output_chan_width_MHz/min_chan_width_MHz)*min_chan_width_MHz
     # 
     output_nchan = int(np.ceil(line_width_MHz / output_chan_width_MHz))

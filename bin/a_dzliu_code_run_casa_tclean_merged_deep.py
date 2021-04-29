@@ -105,7 +105,7 @@ if not os.path.isdir(concatenated_vis):
     concat_params['respectname'] = False
     concat_params['copypointing'] = False
     for ivis, vis in enumerate(vis_list):
-        this_vis = os.path.join(working_dir, 'mstransformed_vis_%d_.ms'%(ivis+1))
+        this_vis = os.path.join(working_dir, 'mstransformed_vis_%d.ms'%(ivis+1))
         if not os.path.isdir(this_vis):
             mstransform_params = \
                 get_mstransform_params_for_spectral_line(\
