@@ -101,7 +101,7 @@ if not os.path.isdir(concatenated_vis):
     concat_params = OrderedDict()
     concat_params['vis'] = []
     concat_params['concatvis'] = 'merged.ms'
-    concat_params['freqtol'] = '%.4fMHz'%(chan_width_kms*0.8/2.99792458e5*line_obsfreq_GHz*1e3)
+    concat_params['freqtol'] = '%.4fMHz'%(channel_width_kms*0.8/2.99792458e5*line_obsfreq_GHz*1e3)
     concat_params['respectname'] = False
     concat_params['copypointing'] = False
     for ivis, vis in enumerate(vis_list):
