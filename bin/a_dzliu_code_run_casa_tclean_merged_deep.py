@@ -169,8 +169,10 @@ print2('cell: %s'%(cell))
 
 if imsize[0] > max_imsize:
     print2('Warning! imsize[0] %s is larger than max_imsize %d, setting it to the max size.'%(imsize[0], max_imsize))
+    imsize[0] = max_imsize
 if imsize[1] > max_imsize:
     print2('Warning! imsize[1] %s is larger than max_imsize %d, setting it to the max size.'%(imsize[1], max_imsize))
+    imsize[1] = max_imsize
 
 
 # prepare tclean params
