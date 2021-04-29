@@ -342,8 +342,13 @@ def fix_zero_rest_frequency(vis):
     do_fix_zero_rest_frequency = False
     tb.open(vis+os.sep+'SOURCE')
     if 'REST_FREQUENCY' in tb.colnames():
-        if np.any(np.isclose(np.array([tb.getcell('REST_FREQUENCY', i) for i in range(tb.nrows())]), 0)):
-            do_fix_zero_rest_frequency = True
+        for i in range(tb.nrows()):
+            rest_frequency_cell_data = tb.getcell('REST_FREQUENCY', i)
+            if rest_frequency_cell_data is not None:
+                #print2('Checking REST_FREQUENCY column: %s'%(re.sub(r'\s+', r' ', str(rest_frequency_column_data))))
+                if np.any(np.isclose(np.array([rest_frequency_cell_data]), 0)):
+                    do_fix_zero_rest_frequency = True
+                    break
     tb.close()
     # 
     if do_fix_zero_rest_frequency:

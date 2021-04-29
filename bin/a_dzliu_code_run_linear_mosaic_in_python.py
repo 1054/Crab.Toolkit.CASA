@@ -48,6 +48,7 @@ for Region_file, DataSet_name in list(zip(Region_files, DataSet_names)):
     list_of_image_corners_coords = [] # science image lower left and upper right corner, i.e., x0y0 (0,0) x1y1 (naxis1-1,naxis2-1)
     list_of_region_corners_coords = [] # unpadded region lower left and upper right corner
     list_of_corner_coords = [] # if edge region then use image corner otherwise region corner
+    list_of_beams = []
     
     # prepare output header
     output_image = None
@@ -105,6 +106,8 @@ for Region_file, DataSet_name in list(zip(Region_files, DataSet_names)):
                                                      SkyCoord(image_corners_RA[1], image_corners_Dec[1], frame=FK5, unit=(u.deg, u.deg))])
                 list_of_region_corners_coords.append([SkyCoord(region_corners_RA[0], region_corners_Dec[0], frame=FK5, unit=(u.deg, u.deg)),\
                                                       SkyCoord(region_corners_RA[1], region_corners_Dec[1], frame=FK5, unit=(u.deg, u.deg))])
+                # 
+                list_of_beams.append([header['BMAJ'], header['BMIN'], header['BPA']])
                 # 
                 if output_header is None:
                     output_header = copy.deepcopy(header)

@@ -1,0 +1,2 @@
+grep -A10 "Spectral Window" ../VLA_*/Level_2_Calib/DataSet_*/calibrated/calibrated.ms.listobs.txt
+
