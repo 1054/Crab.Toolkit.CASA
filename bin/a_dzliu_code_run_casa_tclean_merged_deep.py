@@ -54,10 +54,10 @@ from taskinit import casalog #, tb, ms, iatool
 target = 'GS30274'
 redshift = 2.225
 line_name = 'CO32'
-line_width_kms = 800.0
-line_free_kms = 800.0 # line free channels at each side of the line
 line_restfreq_GHz = 345.7959899
 line_obsfreq_GHz = line_restfreq_GHz/(1.0+redshift)
+line_width_kms = 800.0
+line_free_kms = 800.0 # line free channels at each side of the line
 channel_width_kms = 20.0
 clean_mask_radius_arcsec = 2.0 #<TODO># galaxy must be at the image center
 phase_center = ''
