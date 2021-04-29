@@ -164,11 +164,13 @@ au_cellsize, au_imsize, _ = au.pickCellSize(vis,
                                             )
 imsize = au_imsize
 cell = str(au_cellsize)+'arcsec'
-print2('imsize: %d'%(imsize))
+print2('imsize: %s'%(imsize))
 print2('cell: %s'%(cell))
 
-if imsize > max_imsize:
-    print2('Warning! imsize %d is larger than max_imsize %d, setting it to the max size.'%(imsize, max_imsize))
+if imsize[0] > max_imsize:
+    print2('Warning! imsize[0] %s is larger than max_imsize %d, setting it to the max size.'%(imsize[0], max_imsize))
+if imsize[1] > max_imsize:
+    print2('Warning! imsize[1] %s is larger than max_imsize %d, setting it to the max size.'%(imsize[1], max_imsize))
 
 
 # prepare tclean params
@@ -243,9 +245,9 @@ tclean_params['niter'] = 50000
 tclean_params['weighting'] = 'natural'
 center_aperture_radius_arcsec = clean_mask_radius_arcsec
 center_aperture_radius_pix = center_aperture_radius_arcsec/au_cellsize
-if center_aperture_radius_pix < imsize/2.0:
+if center_aperture_radius_pix < np.min(imsize)/2.0:
     tclean_params['usemask'] = 'user'
-    tclean_params['mask'] = 'circle[[%dpix,%dpix],%dpix]'%(int(np.round(imsize+1.0/2.0)), int(np.round(imsize+1.0/2.0)), int(np.ceil(center_aperture_radius_pix)))
+    tclean_params['mask'] = 'circle[[%dpix,%dpix],%dpix]'%(int(np.round(imsize[0]+1.0/2.0)), int(np.round(imsize[1]+1.0/2.0)), int(np.ceil(center_aperture_radius_pix)))
 
 # run tclean to make clean image
 if not os.path.isdir(tclean_params['imagename']+'.image'):
