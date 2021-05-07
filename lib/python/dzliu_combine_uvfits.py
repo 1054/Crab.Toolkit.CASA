@@ -346,9 +346,13 @@ def dzliu_combine_uvfits(
             spw_info_dict = copy.deepcopy(list_of_spw_info_dict[i])
             field_info_dict = copy.deepcopy(list_of_field_info_dict[i])
             for key in spw_info_dict:
-                del spw_info_dict[key]['CHAN_FREQ']
+                for subkey in spw_info_dict[key]:
+                    if not np.isscalar(spw_info_dict[key][subkey]):
+                        del spw_info_dict[key][subkey]
             for key in field_info_dict:
-                del field_info_dict[key]['CHAN_FREQ']
+                for subkey in field_info_dict[key]:
+                    if not np.isscalar(field_info_dict[key][subkey]):
+                        del field_info_dict[key][subkey]
             _print_params('list_of_spw_info_dict[%d]: '%(i), spw_info_dict)
             _print_params('list_of_field_info_dict[%d]: '%(i), field_info_dict)
         raise Exception('Error! Could not find multiple input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
