@@ -48,9 +48,11 @@ try:
         importuvfits = importuvfits_cli_()
         from exportuvfits_cli import exportuvfits_cli_
         exportuvfits = exportuvfits_cli_()
+        from listobs_cli import listobs_cli_
+        listobs = listobs_cli_()
     else:
         # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
-        from casatasks import mstransform, concat, importuvfits, exportuvfits
+        from casatasks import mstransform, concat, importuvfits, exportuvfits, listobs
         #from casatasks import sdbaseline
         #from casatools import ia
 except:
