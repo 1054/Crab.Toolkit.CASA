@@ -331,13 +331,27 @@ def dzliu_combine_uvfits(
             #_print2(str([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))
             #_print2(str(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))))
             if len(spw_info_dict) > 1 and np.max(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))) > 1:
-                _print2('Warning! More than one spws are in the ms and they do not have the same channel number. This may cause some error during mstransform.')
+                _print2('Warning! More than one spws are in the ms and they do not have the same channel number. ')
+                ispw_min_chan_width = np.argmin(np.array([np.abs(spw_info_dict[k]['CHAN_WIDTH']) for k in spw_info_dict.keys()])).ravel()
+                if not np.isscalar(ispw_min_chan_width):
+                    if len(ispw_min_chan_width) > 1:
+                        ispw_min_chan_width = np.argmax(np.array([np.abs(spw_info_dict[k]['NUM_CHAN']) for k in ispw_min_chan_width])).ravel()[0]
+                    else:
+                        ispw_min_chan_width = ispw_min_chan_width[0]
+                _print2('We will take the minimum chan_width spw %s, and exclude others.'%(ispw_min_chan_width))
+                ispw_to_exclude = []
                 for ispw in spw_info_dict.keys():
                     _print2('spw_info_dict[%d]: min_freq: %s, max_freq: %s, num_chan: %s, name: %r'%(ispw, 
                             spw_info_dict[ispw]['MIN_FREQ'], 
                             spw_info_dict[ispw]['MAX_FREQ'], 
                             spw_info_dict[ispw]['NUM_CHAN'], 
                             spw_info_dict[ispw]['NAME']))
+                    if spw_info_dict[ispw]['CHAN_WIDTH'] > spw_info_dict[ispw_min_chan_width]['CHAN_WIDTH'] or \
+                       spw_info_dict[ispw]['NUM_CHAN'] != spw_info_dict[ispw_min_chan_width]['NUM_CHAN']:
+                        ispw_to_exclude.append(ispw)
+                _print2('ispw_to_exclude: %s'%(str(ispw_to_exclude)))
+                for ispw in ispw_to_exclude:
+                    del input_ms_dict['spw_info_dict'][ispw]
                 pass
             # 
             mstransform_params = OrderedDict()
