@@ -194,7 +194,7 @@ def _get_datacolumn(vis):
 # 
 # def _get_field_info_dict
 # 
-def _get_field_info_dict(vis, target_ra, target_dec, separation_limit=2.0, output_json_file=None):
+def _get_field_info_dict(vis, target_ra, target_dec, separation_limit=2.0, output_json_file=None, verbose=True):
     tb.open(vis+os.sep+'FIELD')
     field_info_dict = {}
     field_count = tb.nrows()
@@ -210,7 +210,11 @@ def _get_field_info_dict(vis, target_ra, target_dec, separation_limit=2.0, outpu
             target_ra_radian = np.deg2rad(target_ra)
             target_dec_radian = np.deg2rad(target_dec)
             separation_limit_radian = np.deg2rad(separation_limit/3600.0)
-            if ((delay_dir[0]-target_ra_radian)**2 + (delay_dir[1]-target_dec_radian)**2) > separation_limit_radian**2:
+            separation_radian = np.sqrt((delay_dir[0]-target_ra_radian)**2 + (delay_dir[1]-target_dec_radian)**2)
+            if verbose:
+                _print2('get_field_info_dict %d NAME %r DELAY_DIR %s %s target ra dec %s %s sep %s sep limit %s'%(\
+                        i, field_name, delay_dir[0], delay_dir[1], target_ra_radian, target_dec_radian, separation_radian, separation_limit_radian))
+            if separation_radian > separation_limit_radian:
                 continue
         field_info_dict[i] = {
             'NAME': field_name, 
@@ -331,12 +335,12 @@ def dzliu_combine_uvfits(
             _print2('list_of_input_ms_dict[%d]: min_freq: %s, max_freq: %s, chan_width: %s, spw: %r, field: %r'%(i, \
                     input_ms_dict['min_freq'], input_ms_dict['max_freq'], input_ms_dict['chan_width'], input_ms_dict['spw'], input_ms_dict['field']))
     
-    if len(list_of_input_ms_dict) == 0:
-        _print2('Error! Could not find any input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
+    if len(list_of_input_ms_dict) <= 1:
+        _print2('Error! Could not find multiple input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
         for i in range(len(list_of_input_ms)):
             _print_params('list_of_spw_info_dict[%d]: '%(i), list_of_spw_info_dict[i])
             _print_params('list_of_field_info_dict[%d]: '%(i), list_of_field_info_dict[i])
-        raise Exception('Error! Could not find any input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
+        raise Exception('Error! Could not find multiple input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
     
     common_min_freq = np.max([input_ms_dict['min_freq'] for input_ms_dict in list_of_input_ms_dict])
     common_max_freq = np.min([input_ms_dict['max_freq'] for input_ms_dict in list_of_input_ms_dict])
