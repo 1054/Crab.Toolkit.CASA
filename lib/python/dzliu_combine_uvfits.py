@@ -101,7 +101,7 @@ def _save_params(dict_params, json_file):
 # 
 # def _get_spw_info_dict
 # 
-def _get_spw_info_dict(vis, target_frequency=None, output_json_file=None, only_line_spw=True):
+def _get_spw_info_dict(vis, target_frequency=None, output_json_file=None, only_line_spw=True, same_num_chan=True):
     tb.open(vis+os.sep+'SPECTRAL_WINDOW')
     spw_info_dict = {}
     spw_count = tb.nrows()
@@ -141,8 +141,37 @@ def _get_spw_info_dict(vis, target_frequency=None, output_json_file=None, only_l
             'MAX_FREQ': max_freq, 
         }
     tb.close()
+    # 
+    # if same_num_chan is True, make sure only return best chan_width spws with the same num_chan
+    if len(spw_info_dict) > 1 and np.max(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))) > 1:
+        _print2('Warning! More than one spws are in the ms and they do not have the same channel number. ')
+        argmin_chan_width = np.argmin(np.array([np.abs(spw_info_dict[k]['CHAN_WIDTH']) for k in spw_info_dict.keys()])).ravel()
+        ispw_min_chan_width = np.array(list(spw_info_dict.keys()))[argmin_chan_width]
+        if len(ispw_min_chan_width) > 1:
+            argmax_num_chan = np.argmax(np.array([np.abs(spw_info_dict[k]['NUM_CHAN']) for k in ispw_min_chan_width])).ravel()[0]
+            ispw_min_chan_width = ispw_min_chan_width[argmax_num_chan]
+        else:
+            ispw_min_chan_width = ispw_min_chan_width[0]
+        _print2('We will take the minimum chan_width spw %s, and exclude others.'%(ispw_min_chan_width))
+        ispw_to_exclude = []
+        for ispw in spw_info_dict.keys():
+            _print2('spw_info_dict[%d]: min_freq: %s, max_freq: %s, num_chan: %s, name: %r'%(ispw, 
+                    spw_info_dict[ispw]['MIN_FREQ'], 
+                    spw_info_dict[ispw]['MAX_FREQ'], 
+                    spw_info_dict[ispw]['NUM_CHAN'], 
+                    spw_info_dict[ispw]['NAME']))
+            if spw_info_dict[ispw]['CHAN_WIDTH'] > spw_info_dict[ispw_min_chan_width]['CHAN_WIDTH'] or \
+               spw_info_dict[ispw]['NUM_CHAN'] != spw_info_dict[ispw_min_chan_width]['NUM_CHAN']:
+                ispw_to_exclude.append(ispw)
+        _print2('ispw_to_exclude: %s'%(str(ispw_to_exclude)))
+        for ispw in ispw_to_exclude:
+            del spw_info_dict[ispw]
+    # 
+    # save params to json file
     if len(spw_info_dict) > 0 and output_json_file is not None:
         _save_params(spw_info_dict, output_json_file)
+    # 
+    # return
     return spw_info_dict
 
 
@@ -283,7 +312,7 @@ def dzliu_combine_uvfits(
     list_of_input_ms_dict = []
     for i in range(len(list_of_input_ms)):
         vis = list_of_input_ms[i]
-        spw_info_dict = _get_spw_info_dict(vis, target_frequency, output_json_file=vis+'.spw.info.json', only_line_spw=True)
+        spw_info_dict = _get_spw_info_dict(vis, target_frequency, output_json_file=vis+'.spw.info.json', only_line_spw=True, same_num_chan=True)
         field_info_dict = _get_field_info_dict(vis, target_ra, target_dec, separation_limit, output_json_file=vis+'.field.info.json')
         list_of_spw_info_dict.append(spw_info_dict)
         list_of_field_info_dict.append(field_info_dict)
@@ -294,7 +323,7 @@ def dzliu_combine_uvfits(
             input_ms_dict['target_frequency'] = target_frequency
             input_ms_dict['min_freq'] = np.min([spw_info_dict[k]['MIN_FREQ'] for k in spw_info_dict.keys()])
             input_ms_dict['max_freq'] = np.max([spw_info_dict[k]['MAX_FREQ'] for k in spw_info_dict.keys()])
-            input_ms_dict['chan_width'] = np.max([spw_info_dict[k]['CHAN_WIDTH'] for k in spw_info_dict.keys()]) #<TODO># taking the coarest channel width
+            input_ms_dict['chan_width'] = np.max([np.abs(spw_info_dict[k]['CHAN_WIDTH']) for k in spw_info_dict.keys()]) #<TODO># taking the coarest channel width
             input_ms_dict['spw'] = ','.join([str(k).strip() for k in spw_info_dict.keys()])
             input_ms_dict['field'] = ','.join([str(k).strip() for k in field_info_dict.keys()])
             input_ms_dict['vis'] = vis
@@ -330,32 +359,6 @@ def dzliu_combine_uvfits(
             #_print2('len(spw_info_dict): '+str(len(spw_info_dict)))
             #_print2(str([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))
             #_print2(str(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))))
-            if len(spw_info_dict) > 1 and np.max(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))) > 1:
-                _print2('Warning! More than one spws are in the ms and they do not have the same channel number. ')
-                argmin_chan_width = np.argmin(np.array([np.abs(spw_info_dict[k]['CHAN_WIDTH']) for k in spw_info_dict.keys()])).ravel()
-                ispw_min_chan_width = np.array(list(spw_info_dict.keys()))[argmin_chan_width]
-                if len(ispw_min_chan_width) > 1:
-                    argmax_num_chan = np.argmax(np.array([np.abs(spw_info_dict[k]['NUM_CHAN']) for k in ispw_min_chan_width])).ravel()[0]
-                    ispw_min_chan_width = ispw_min_chan_width[argmax_num_chan]
-                else:
-                    ispw_min_chan_width = ispw_min_chan_width[0]
-                _print2('We will take the minimum chan_width spw %s, and exclude others.'%(ispw_min_chan_width))
-                ispw_to_exclude = []
-                for ispw in spw_info_dict.keys():
-                    _print2('spw_info_dict[%d]: min_freq: %s, max_freq: %s, num_chan: %s, name: %r'%(ispw, 
-                            spw_info_dict[ispw]['MIN_FREQ'], 
-                            spw_info_dict[ispw]['MAX_FREQ'], 
-                            spw_info_dict[ispw]['NUM_CHAN'], 
-                            spw_info_dict[ispw]['NAME']))
-                    if spw_info_dict[ispw]['CHAN_WIDTH'] > spw_info_dict[ispw_min_chan_width]['CHAN_WIDTH'] or \
-                       spw_info_dict[ispw]['NUM_CHAN'] != spw_info_dict[ispw_min_chan_width]['NUM_CHAN']:
-                        ispw_to_exclude.append(ispw)
-                _print2('ispw_to_exclude: %s'%(str(ispw_to_exclude)))
-                for ispw in ispw_to_exclude:
-                    del spw_info_dict[ispw]
-                input_ms_dict['spw'] = ','.join([str(k).strip() for k in spw_info_dict.keys()])
-                input_ms_dict['spw_info_dict'] = spw_info_dict
-                pass
             # 
             mstransform_params = OrderedDict()
             mstransform_params['vis'] = vis
