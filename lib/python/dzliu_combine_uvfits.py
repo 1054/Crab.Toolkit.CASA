@@ -327,6 +327,7 @@ def dzliu_combine_uvfits(
         outputvis = working_dir+os.sep+'mstransformed_vis_%d.ms'%(i+1)
         if not os.path.isdir(outputvis):
             # check if the input vis has more than one spws and these spws do not have the same channel number
+            _print2('len(spw_info_dict): '+str(len(spw_info_dict)))
             _print2(str([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))
             _print2(str(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))))
             if len(spw_info_dict) > 1 and not np.max(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))) > 1:
