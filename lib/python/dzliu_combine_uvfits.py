@@ -346,11 +346,13 @@ def dzliu_combine_uvfits(
             spw_info_dict = copy.deepcopy(list_of_spw_info_dict[i])
             field_info_dict = copy.deepcopy(list_of_field_info_dict[i])
             for key in spw_info_dict:
-                for subkey in spw_info_dict[key]:
+                subkeys = list(spw_info_dict[key])
+                for subkey in subkeys:
                     if not np.isscalar(spw_info_dict[key][subkey]):
                         del spw_info_dict[key][subkey]
             for key in field_info_dict:
-                for subkey in field_info_dict[key]:
+                subkeys = list(field_info_dict[key])
+                for subkey in subkeys:
                     if not np.isscalar(field_info_dict[key][subkey]):
                         del field_info_dict[key][subkey]
             _print_params('list_of_spw_info_dict[%d]: '%(i), spw_info_dict)
