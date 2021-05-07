@@ -246,7 +246,7 @@ def dzliu_combine_uvfits(
         target_frequency, 
         target_ra, 
         target_dec, 
-        separation_limit = 4.0, 
+        separation_limit = 5.0, 
         overwrite = False, 
     ):
     """Combine a list of input uvfits files. 
@@ -355,8 +355,8 @@ def dzliu_combine_uvfits(
                 for subkey in subkeys:
                     if not np.isscalar(field_info_dict[key][subkey]):
                         del field_info_dict[key][subkey]
-            _print_params('list_of_spw_info_dict[%d]: '%(i), spw_info_dict)
-            _print_params('list_of_field_info_dict[%d]: '%(i), field_info_dict)
+            _print_params('list_of_spw_info_dict[%d]: dict'%(i), spw_info_dict)
+            _print_params('list_of_field_info_dict[%d]: dict'%(i), field_info_dict)
         raise Exception('Error! Could not find multiple input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
     
     common_min_freq = np.max([input_ms_dict['min_freq'] for input_ms_dict in list_of_input_ms_dict])
@@ -364,7 +364,7 @@ def dzliu_combine_uvfits(
     if common_min_freq >= common_max_freq:
         _print2('Error! Could not find a common intersected frequency range among the input uvfits that contain the target frequency %s.'%(target_frequency))
         for i in range(len(list_of_input_ms_dict)):
-            _print_params('list_of_input_ms_dict[%d]: '%(i), list_of_input_ms_dict[i])
+            _print_params('list_of_input_ms_dict[%d]: dict'%(i), list_of_input_ms_dict[i])
         raise Exception('Error! Could not find a common intersected frequency range among the input uvfits that contain the target frequency %s.'%(target_frequency))
     
     common_chan_width = np.max([np.abs(input_ms_dict['chan_width']) for input_ms_dict in list_of_input_ms_dict])
