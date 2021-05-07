@@ -432,7 +432,12 @@ def dzliu_combine_uvfits(
             _print2('Output to "%s"!'%(concatvis))
     else:
         _print2('Found existing "%s". Will not overwrite it!'%(concatvis))
-
+    
+    # listobs
+    vis = working_dir+os.sep+'concat.ms'
+    if not os.path.isfile(vis+'.listobs.txt'):
+        listobs(vis, listfile=vis+'.listobs.txt')
+    
     # exportuvfits
     vis = concatvis
     fitsfile = output_uvfits
