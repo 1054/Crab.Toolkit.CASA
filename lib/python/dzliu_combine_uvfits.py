@@ -5,7 +5,9 @@
 
 Notes
 -----
-Functions in this code must be run in CASA.  
+Functions in this code must be run in CASA. 
+
+2021-05-07 There is an open issue about the negative channel width. It seems `mstransform` can not reverse the spectral axis to ensure a positive channel width in frequency.
 
 Example
 -------
@@ -441,7 +443,7 @@ def dzliu_combine_uvfits(
         listobs(vis, listfile=vis+'.listobs.txt')
     
     # exportuvfits
-    vis = concatvis
+    vis = working_dir+os.sep+'concat.ms'
     fitsfile = output_uvfits
     if not os.path.isfile(fitsfile):
         exportuvfits_params = OrderedDict()
