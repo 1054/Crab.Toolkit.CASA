@@ -349,6 +349,7 @@ def dzliu_combine_uvfits(
     _print2('common_min_freq: %s'%(common_min_freq))
     _print2('common_max_freq: %s'%(common_max_freq))
     _print2('common_chan_width: %s'%(common_chan_width))
+    raise NotImplementedError()
     
     # mstransform
     list_of_mstransformed_ms = []
