@@ -248,7 +248,7 @@ def dzliu_combine_uvfits(
         target_frequency, 
         target_ra, 
         target_dec, 
-        separation_limit = 6.0, 
+        separation_limit = 3.0, 
         overwrite = False, 
     ):
     """Combine a list of input uvfits files. 
