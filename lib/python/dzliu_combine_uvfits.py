@@ -237,10 +237,19 @@ def dzliu_combine_uvfits(
     # importuvfits
     list_of_input_ms = []
     for i in range(len(list_of_uvfits)):
+        fitsfile = list_of_uvfits[i]
         vis = working_dir+os.sep+'input_vis_%d.ms'%(i+1)
-        if not os.path.isdir(vis):
+        if not os.path.isdir(vis) and fitsfile.endswith('.ms'):
+            # if input is ms, directly copy ms
+            _print2('Copying MS from "%s" to "%s"'%(fitsfile, vis))
+            shutil.copytree(fitsfile, vis)
+            if not os.path.isdir(vis):
+                raise Exception('Error! Failed to copy the input MS to "%s"!'%(vis))
+            else:
+                _print2('Output to "%s"!'%(vis))
+        elif not os.path.isdir(vis):
             importuvfits_params = OrderedDict()
-            importuvfits_params['fitsfile'] = list_of_uvfits[i]
+            importuvfits_params['fitsfile'] = fitsfile
             importuvfits_params['vis'] = vis
             importuvfits_params['antnamescheme'] = 'new'
             _print_params('importuvfits', importuvfits_params)
