@@ -345,6 +345,9 @@ def dzliu_combine_uvfits(
         raise Exception('Error! Could not find a common intersected frequency range among the input uvfits that contain the target frequency %s.'%(target_frequency))
     
     common_chan_width = np.max([np.abs(input_ms_dict['chan_width']) for input_ms_dict in list_of_input_ms_dict])
+    _print2('common_min_freq: %s'%(common_min_freq))
+    _print2('common_max_freq: %s'%(common_max_freq))
+    _print2('common_chan_width: %s'%(common_chan_width))
     
     # mstransform
     list_of_mstransformed_ms = []
