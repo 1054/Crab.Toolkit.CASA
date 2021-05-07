@@ -351,7 +351,9 @@ def dzliu_combine_uvfits(
                         ispw_to_exclude.append(ispw)
                 _print2('ispw_to_exclude: %s'%(str(ispw_to_exclude)))
                 for ispw in ispw_to_exclude:
-                    del input_ms_dict['spw_info_dict'][ispw]
+                    del spw_info_dict[ispw]
+                input_ms_dict['spw'] = ','.join([str(k).strip() for k in spw_info_dict.keys()])
+                input_ms_dict['spw_info_dict'] = spw_info_dict
                 pass
             # 
             mstransform_params = OrderedDict()
