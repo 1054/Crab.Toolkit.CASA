@@ -101,7 +101,7 @@ def _get_spw_info_dict(vis, target_frequency=None, output_json_file=None, only_l
     spw_count = tb.nrows()
     #print(tb.colnames()) # ['MEAS_FREQ_REF', 'CHAN_FREQ', 'REF_FREQUENCY', 'CHAN_WIDTH', 'EFFECTIVE_BW', 'RESOLUTION', 'FLAG_ROW', 'FREQ_GROUP', 'FREQ_GROUP_NAME', 'IF_CONV_CHAIN', 'NAME', 'NET_SIDEBAND', 'NUM_CHAN', 'TOTAL_BANDWIDTH']
     #spw_info_dict['count'] = spw_count
-    for i in range(len(spw_count)):
+    for i in range(spw_count):
         spw_name = tb.getcell('NAME', i)
         num_chan = tb.getcell('NUM_CHAN', i)
         chan_freq = tb.getcell('CHAN_FREQ', i)
@@ -157,7 +157,7 @@ def _get_field_info_dict(vis, target_ra, target_dec, separation_limit=2.0, outpu
     field_count = tb.nrows()
     #print(tb.colnames()) # ['DELAY_DIR', 'PHASE_DIR', 'REFERENCE_DIR', 'CODE', 'FLAG_ROW', 'NAME', 'NUM_POLY', 'SOURCE_ID', 'TIME', 'EPHEMERIS_ID', 'PhaseDir_Ref', 'DelayDir_Ref', 'RefDir_Ref']
     #field_info_dict['count'] = field_count
-    for i in range(len(field_count)):
+    for i in range(field_count):
         field_name = tb.getcell('NAME', i)
         delay_dir = tb.getcell('DELAY_DIR', i).ravel()
         phase_dir = tb.getcell('PHASE_DIR', i).ravel()
