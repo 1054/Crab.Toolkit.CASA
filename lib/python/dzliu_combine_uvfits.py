@@ -333,10 +333,11 @@ def dzliu_combine_uvfits(
             if len(spw_info_dict) > 1 and np.max(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))) > 1:
                 _print2('Warning! More than one spws are in the ms and they do not have the same channel number. This may cause some error during mstransform.')
                 for ispw in spw_info_dict.keys():
-                    _print2('spw_info_dict[%d]: min_freq: %s, max_freq: %s, num_chan: %s'%(ispw, 
+                    _print2('spw_info_dict[%d]: min_freq: %s, max_freq: %s, num_chan: %s, name: %r'%(ispw, 
                             spw_info_dict[ispw]['MIN_FREQ'], 
                             spw_info_dict[ispw]['MAX_FREQ'], 
-                            spw_info_dict[ispw]['NUM_CHAN']))
+                            spw_info_dict[ispw]['NUM_CHAN'], 
+                            spw_info_dict[ispw]['NAME']))
                 pass
             # 
             mstransform_params = OrderedDict()
