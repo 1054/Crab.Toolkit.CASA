@@ -2,6 +2,10 @@
 # 
 # This needs to be run in CASA
 # 
+# Functions: 
+#     dzliu_concat
+#     dzliu_concat_uvfits
+# 
 # CASA modules/functions used:
 #     tb, casalog, concat, inp, saveinputs
 # 

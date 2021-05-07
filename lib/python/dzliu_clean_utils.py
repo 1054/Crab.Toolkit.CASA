@@ -1,83 +1,111 @@
+# -*- coding: utf-8 -*-
 # 
-# These functions must be run inside CASA.
-# 
-# This script contains following functions (not a complete list):
-#     get_datacolumn
-#     get_antenn_diameter
-#     get_ref_frequency
-#     get_optimized_imsize
-#     get_field_phasecenters
-#     get_mosaic_imsize_and_phasecenter
-#     get_synbeam_and_imcell
-#     cleanup_tclean_products
-#     apply_pbcor_to_tclean_image
-#     export_tclean_products_as_fits_files
-#     imsmooth_tclean_image
-# 
-# Last update: 
-#     2020-12-23 copied functions from "dzliu_clean.py"
-#     2021-01-04 updated tclean functions
-# 
+"""Utilities for running CASA tclean.
 
-import os, sys, re, copy, shutil
+Notes
+-----
+Functions in this code must be run in CASA.  
+
+Functions
+---------
+This code contains following functions (not a complete list):
+
+- get_datacolumn
+- get_antenn_diameter
+- get_ref_frequency
+- get_optimized_imsize
+- get_field_phasecenters
+- get_mosaic_imsize_and_phasecenter
+- get_synbeam_and_imcell
+- cleanup_tclean_products
+- apply_pbcor_to_tclean_image
+- export_tclean_products_as_fits_files
+- imsmooth_tclean_image
+
+Last updates
+------------
+- 2020-12-23 copied functions from "dzliu_clean.py"
+- 2021-01-04 updated tclean functions
+
+Example
+-------
+Example commands to run this code::
+
+    import os, sys, glob
+    sys.path.append(os.path.expanduser('~/Cloud/Github/Crab.Toolkit.CASA/lib/python'))
+    from dzliu_combine_uvfits import dzliu_combine_uvfits
+    dzliu_combine_uvfits(glob.glob('*.uvfits'), 'combined.uvfits')
+
+"""
+# 
+from __future__ import print_function
+import os, sys, re, json, copy, shutil
 import numpy as np
-
-from taskinit import casalog, tb #, ms, iatool
-#from taskinit import casac
-#tb = casac.table
-#from __casac__.table import table as tb
-#from recipes import makepb, pixelmask2cleanmask
-import casadef
-def version_tuple(version_str):
-    return tuple(map(int, (version_str.split("."))))
-def version_less_than(version_str, compared_version_str):
-    return version_tuple(version_str) < version_tuple(compared_version_str)
-def version_greater_equal(version_str, compared_version_str):
-    return version_tuple(version_str) >= version_tuple(compared_version_str)
-if version_less_than(casadef.casa_version, '6.0.0'):
-    #from __main__ import default, inp, saveinputs
-    ##import task_tclean; task_tclean.tclean # this is what tclean.py calls
-    ##import tclean
-    ##import tclean_cli
-    from tclean_cli import tclean_cli_
-    tclean = tclean_cli_()
-    from mstransform_cli import mstransform_cli_
-    mstransform = mstransform_cli_()
-    from exportfits_cli import exportfits_cli_
-    exportfits = exportfits_cli_()
-    from concat_cli import concat_cli_
-    concat = concat_cli_()
-    from split_cli import split_cli_
-    split = split_cli_()
-    from imstat_cli import imstat_cli_
-    imstat = imstat_cli_()
-    from impbcor_cli import impbcor_cli_
-    impbcor = impbcor_cli_()
-    from imsmooth_cli import imsmooth_cli_
-    imsmooth = imsmooth_cli_()
-else:
-    # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
-    from casatasks import tclean, mstransform, exportfits, concat, split, imstat, impbcor, imsmooth
-    #from casatasks import sdbaseline
-    #from casatools import ia
+from collections import OrderedDict
+try:
+    from astropy.io import fits
+except:
+    import pyfits as fits
+try:
+    from taskinit import casalog, tb #, ms, iatool
+    #from taskinit import casac
+    #tb = casac.table
+    #from __casac__.table import table as tb
+    #from recipes import makepb, pixelmask2cleanmask
+    import casadef
+    def _version_tuple(version_str):
+        return tuple(map(int, (version_str.split("."))))
+    def _version_less_than(version_str, compared_version_str):
+        return _version_tuple(version_str) < _version_tuple(compared_version_str)
+    def _version_greater_equal(version_str, compared_version_str):
+        return _version_tuple(version_str) >= _version_tuple(compared_version_str)
+    if _version_less_than(casadef.casa_version, '6.0.0'):
+        #from __main__ import default, inp, saveinputs
+        ##import task_tclean; task_tclean.tclean # this is what tclean.py calls
+        ##import tclean
+        ##import tclean_cli
+        from tclean_cli import tclean_cli_
+        tclean = tclean_cli_()
+        from mstransform_cli import mstransform_cli_
+        mstransform = mstransform_cli_()
+        from exportfits_cli import exportfits_cli_
+        exportfits = exportfits_cli_()
+        from concat_cli import concat_cli_
+        concat = concat_cli_()
+        from split_cli import split_cli_
+        split = split_cli_()
+        from imstat_cli import imstat_cli_
+        imstat = imstat_cli_()
+        from impbcor_cli import impbcor_cli_
+        impbcor = impbcor_cli_()
+        from imsmooth_cli import imsmooth_cli_
+        imsmooth = imsmooth_cli_()
+    else:
+        # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
+        from casatasks import tclean, mstransform, exportfits, concat, split, imstat, impbcor, imsmooth
+        #from casatasks import sdbaseline
+        #from casatools import ia
+except:
+    print('Error! Could not import taskinit and other CASA modules!')
+    pass
 
 
 
 # 
-# def print2
+# def _print2
 # 
-def print2(message):
+def _print2(message):
     print(message)
     casalog.post(message, 'INFO')
 
 
 
 # 
-# def print_params
+# def _print_params
 # 
-def print_params(dict_params, prefix_str):
+def _print_params(dict_params, prefix_str):
     print_str = prefix_str+'('+', '.join("{!s}={!r}".format(k, dict_params[k]) for k in dict_params.keys())+')'
-    print2(print_str)
+    _print2(print_str)
 
 
 
@@ -116,8 +144,8 @@ def get_antenn_diameter(vis):
     tb.close()
     #
     minantdiam = np.min(ant_diams) # meter
-    print2('ant_diams = %s'%(ant_diams))
-    print2('minantdiam = %s [m]'%(minantdiam))
+    _print2('ant_diams = %s'%(ant_diams))
+    _print2('minantdiam = %s [m]'%(minantdiam))
     #
     return minantdiam
 
@@ -339,13 +367,13 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
         ref_freq_Hz = get_ref_frequency(vis)
     pribeam = 1.13  * (2.99792458e8 / ref_freq_Hz / minantdiam / np.pi * 180.0 ) # in units of degrees, see -- https://help.almascience.org/index.php?/Knowledgebase/Article/View/90
     if verbose:
-        print2('minantdiam = %s [meter]'%(minantdiam))
-        print2('pribeam = %s [arcsec]'%(pribeam * 3600.0))
-        print2('matched_field_phasecenters = %s'%(re.sub(r'[ \t\n\r]+', r' ', str(matched_field_phasecenters))))
-        print2('matched_field_min_RA_deg = %s'%(matched_field_min_RA_deg))
-        print2('matched_field_max_RA_deg = %s'%(matched_field_max_RA_deg))
-        print2('matched_field_min_Dec_deg = %s'%(matched_field_min_Dec_deg))
-        print2('matched_field_max_Dec_deg = %s'%(matched_field_max_Dec_deg))
+        _print2('minantdiam = %s [meter]'%(minantdiam))
+        _print2('pribeam = %s [arcsec]'%(pribeam * 3600.0))
+        _print2('matched_field_phasecenters = %s'%(re.sub(r'[ \t\n\r]+', r' ', str(matched_field_phasecenters))))
+        _print2('matched_field_min_RA_deg = %s'%(matched_field_min_RA_deg))
+        _print2('matched_field_max_RA_deg = %s'%(matched_field_max_RA_deg))
+        _print2('matched_field_min_Dec_deg = %s'%(matched_field_min_Dec_deg))
+        _print2('matched_field_max_Dec_deg = %s'%(matched_field_max_Dec_deg))
     # 
     # calc mosaic width and height, half primary beam padding at both sides are considered.
     imsize_RA_deg = (matched_field_max_RA_deg - matched_field_min_RA_deg) * np.cos(np.deg2rad((matched_field_max_Dec_deg+matched_field_min_Dec_deg)/2.0))
@@ -353,10 +381,10 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
     imsize_RA_deg_padded = imsize_RA_deg + 2.0 * padding_by_primary_beam * pribeam # padding this size at each side
     imsize_Dec_deg_padded = imsize_Dec_deg + 2.0 * padding_by_primary_beam * pribeam # padding this size at each side
     if verbose:
-        print2('imsize_RA = %s [arcsec]'%(imsize_RA_deg * 3600.0))
-        print2('imsize_Dec = %s [arcsec]'%(imsize_Dec_deg * 3600.0))
-        print2('imsize_RA = %s [arcsec] (padded)'%(imsize_RA_deg_padded * 3600.0))
-        print2('imsize_Dec = %s [arcsec] (padded)'%(imsize_Dec_deg_padded * 3600.0))
+        _print2('imsize_RA = %s [arcsec]'%(imsize_RA_deg * 3600.0))
+        _print2('imsize_Dec = %s [arcsec]'%(imsize_Dec_deg * 3600.0))
+        _print2('imsize_RA = %s [arcsec] (padded)'%(imsize_RA_deg_padded * 3600.0))
+        _print2('imsize_Dec = %s [arcsec] (padded)'%(imsize_Dec_deg_padded * 3600.0))
     # 
     # get imcell_arcsec (pixel_size) from the given cell
     pixel_size = re.sub(r'[^0-9.a-zA-Z+-]', r'', str(cell))
@@ -369,10 +397,10 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
     elif re.match(r'^([0-9.eE+-]+)$', pixel_size): 
         imcell_arcsec = float(re.sub(r'^([0-9.eE+-]+)$', r'\1', pixel_size)) # in default we assume arcsec unit
     else:
-        print2('Error! The input pixel_size could not be understood. It should be a string with a unit, e.g. \'1.0arcsec\'.')
+        _print2('Error! The input pixel_size could not be understood. It should be a string with a unit, e.g. \'1.0arcsec\'.')
         raise Exception('Error! The input pixel_size could not be understood.')
     if verbose:
-        print2('imcell = %s [arcsec]'%(imcell_arcsec))
+        _print2('imcell = %s [arcsec]'%(imcell_arcsec))
     # 
     # 
     imsize_RA = imsize_RA_deg_padded / (imcell_arcsec / 3600.0) # pixels
@@ -382,8 +410,8 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
     else:
         imsize = [get_optimized_imsize(imsize_RA), get_optimized_imsize(imsize_Dec)]
     if verbose:
-        print2('imsize_RA = %s [pixel]'%(imsize_RA))
-        print2('imsize_Dec = %s [pixel]'%(imsize_Dec))
+        _print2('imsize_RA = %s [pixel]'%(imsize_RA))
+        _print2('imsize_Dec = %s [pixel]'%(imsize_Dec))
     # 
     # also write to ds9 region file
     if output_ds9_region_file != '':
@@ -400,7 +428,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                 fp.write('circle(%s,%s,%s") # text={%s}\n'%(\
                     matched_field_phasecenters[0, i], matched_field_phasecenters[1, i], pribeam*3600./2., matched_field_indices[i]))
         if verbose:
-            print2('Output to "%s"'%(output_ds9_region_file))
+            _print2('Output to "%s"'%(output_ds9_region_file))
     # 
     # if the user wants to divide the field into rows and cols, then do that
     if divide_into_ncol_and_nrow is not None:
@@ -410,7 +438,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
             divide_into_ncol_and_nrow = [divide_into_ncol_and_nrow[0], divide_into_ncol_and_nrow[0]]
         ncol = divide_into_ncol_and_nrow[0]
         nrow = divide_into_ncol_and_nrow[1]
-        print2('Dividing into ncolxnrow %dx%d'%(ncol, nrow))
+        _print2('Dividing into ncolxnrow %dx%d'%(ncol, nrow))
         divided_imsize_list = []
         divided_imsize_unpadded_list = []
         divided_center_RA_list = []
@@ -437,7 +465,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                 divided_center_Dec_list.append(divided_center_Dec_deg)
                 divided_phasecenter_list.append(divided_phasecenter)
                 if verbose:
-                    print2('icol %d irow %d phasecenter %s imsize %sx%s'%(icol, irow, divided_phasecenter, divided_imsize[0], divided_imsize[1]))
+                    _print2('icol %d irow %d phasecenter %s imsize %sx%s'%(icol, irow, divided_phasecenter, divided_imsize[0], divided_imsize[1]))
         if output_ds9_region_file != '':
             with open(output_ds9_region_file, 'a') as fp:
                 for i in range(len(divided_imsize_list)):
@@ -450,7 +478,7 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
                         divided_center_RA_list[i], divided_center_Dec_list[i], 
                         divided_imsize_unpadded_list[i][0]*imcell_arcsec, divided_imsize_unpadded_list[i][1]*imcell_arcsec, icol, irow))
             if verbose:
-                print2('Output divided mosaic regions to "%s"'%(output_ds9_region_file))
+                _print2('Output divided mosaic regions to "%s"'%(output_ds9_region_file))
         return divided_imsize_list, divided_phasecenter_list
     # 
     return imsize, phasecenter
@@ -461,8 +489,9 @@ def get_mosaic_imsize_and_phasecenter(vis, cell, galaxy_name='', ref_freq_Hz=Non
 # get field IDs in mosaic
 # 
 def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_freq_Hz=None, galaxy_name='', padding_by_primary_beam=0.75, verbose=True):
-    """
-    padding_by_primary_beam should correspond to the pblimit. pblimit 0.2 means padding_by_primary_beam 1.5/2.=0.75. 
+    """Get field IDs in mosaic.
+    
+    The `padding_by_primary_beam` arg should correspond to the pblimit. pblimit 0.2 means padding_by_primary_beam 1.5/2.=0.75. 
     Here we choose a padding_by_primary_beam of 0.8, which means we require the field center must be within the input field of view and
     has a distance to the edges of at least 0.8 primary beam. This makes sure all field pointings are within the input field of view, 
     even for a small pblimit (0.2). 
@@ -471,10 +500,10 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     casalog.origin('get_field_IDs_in_mosaic')
     # 
     if verbose:
-        print2('Getting field IDs inside phasecenter %s imsize %s cell %s in vis %r'%(phasecenter, imsize, cell, vis))
+        _print2('Getting field IDs inside phasecenter %s imsize %s cell %s in vis %r'%(phasecenter, imsize, cell, vis))
     # 
     if cell is None or imsize is None or phasecenter is None:
-        print2('Error! cell is None or imsize is None or phasecenter is None!')
+        _print2('Error! cell is None or imsize is None or phasecenter is None!')
         raise Exception('Error! cell is None or imsize is None or phasecenter is None!')
     # 
     input_RA, input_Dec = phasecenter.replace('J2000','').split()
@@ -484,7 +513,7 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
         try:
             input_RA = float(input_RA)
         except:
-            print2('Error! Please input a float number in units of deg for the RA in the input phasecenter!')
+            _print2('Error! Please input a float number in units of deg for the RA in the input phasecenter!')
             raise Exception('Error! Please input a float number in units of deg for the RA in the input phasecenter!')
     if input_Dec.endswith('deg'):
         input_Dec = float(input_Dec.replace('deg',''))
@@ -492,7 +521,7 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
         try:
             input_Dec = float(input_Dec)
         except:
-            print2('Error! Please input a float number in units of deg for the Dec in the input phasecenter!')
+            _print2('Error! Please input a float number in units of deg for the Dec in the input phasecenter!')
             raise Exception('Error! Please input a float number in units of deg for the Dec in the input phasecenter!')
     # 
     # check imsize and make it 2-element list
@@ -512,7 +541,7 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     elif re.match(r'^([0-9.eE+-]+)$', pixel_size): 
         imcell_arcsec = float(re.sub(r'^([0-9.eE+-]+)$', r'\1', pixel_size)) # in default we assume arcsec unit
     else:
-        print2('Error! The input pixel_size could not be understood. It should be a string with a unit, e.g. \'1.0arcsec\'.')
+        _print2('Error! The input pixel_size could not be understood. It should be a string with a unit, e.g. \'1.0arcsec\'.')
         raise Exception('Error! The input pixel_size could not be understood.')
     # 
     # get antdiam
@@ -532,9 +561,9 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
     matched_field_name, matched_field_indices, matched_field_phasecenters = get_field_phasecenters(vis, galaxy_name=galaxy_name)
     if verbose:
         if galaxy_name != '':
-            print2('Found %d fields with galaxy_name %r in the input ms %r'%(len(matched_field_indices), galaxy_name, vis))
+            _print2('Found %d fields with galaxy_name %r in the input ms %r'%(len(matched_field_indices), galaxy_name, vis))
         else:
-            print2('Found %d fields in the input ms %r'%(len(matched_field_indices), vis))
+            _print2('Found %d fields in the input ms %r'%(len(matched_field_indices), vis))
     for i in range(len(matched_field_indices)):
         field_RA = matched_field_phasecenters[0, i]
         field_Dec = matched_field_phasecenters[1, i]
@@ -545,7 +574,7 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
            dDec < imsize_Dec_deg/2.-pribeam*padding_by_primary_beam:
             # 
             if verbose:
-                print2('Found field ID %d RA Dec %s %s with half primary beam size %s inside the input mosaic RA Dec %s %s (offset %s %s) FoV %s %s phasecenter %s imsize %s cell %s'%(\
+                _print2('Found field ID %d RA Dec %s %s with half primary beam size %s inside the input mosaic RA Dec %s %s (offset %s %s) FoV %s %s phasecenter %s imsize %s cell %s'%(\
                     matched_field_indices[i], field_RA, field_Dec, pribeam/2., center_RA, center_Dec, dRA, dDec, 
                     imsize_RA_deg, imsize_Dec_deg, phasecenter, imsize, cell))
             # 
@@ -559,12 +588,22 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
 # get uvdist
 # 
 def get_synbeam_and_imcell(vis, ref_freq_Hz = None, oversampling = 5.0):
+    """Get beam size and imcell.
+    
+    Returns
+    -------
+    synbeam : str
+        Beam size in string format in units of arcsec.
+    imcell : str
+        Cell size in string format in units of arcsec. 
+    
+    """
     # 
     tb.open(vis)
     uvw = tb.getcol('UVW') # shape (3, nrows), each row is a (u,v,w) array
-    ##print2('tb.query(\'FIELD_ID in [%s] AND DATA_DESC_ID in [%s] AND STATE_ID in [%s]\', \'UVW\')'%(','.join(matched_field_indices.astype(str)), ','.join(valid_data_desc_indicies.astype(str)), ','.join(valid_state_indices.astype(str))))
+    ##_print2('tb.query(\'FIELD_ID in [%s] AND DATA_DESC_ID in [%s] AND STATE_ID in [%s]\', \'UVW\')'%(','.join(matched_field_indices.astype(str)), ','.join(valid_data_desc_indicies.astype(str)), ','.join(valid_state_indices.astype(str))))
     ##result = tb.query('FIELD_ID in [%s] AND DATA_DESC_ID in [%s] AND STATE_ID in [%s]'%(','.join(matched_field_indices.astype(str)), ','.join(valid_data_desc_indicies.astype(str)), ','.join(valid_state_indices.astype(str))), 'UVW')
-    #print2('tb.query(\'FIELD_ID in [%s] AND STATE_ID in [%s]\', \'UVW\')'%(','.join(matched_field_indices.astype(str)), ','.join(valid_state_indices.astype(str))))
+    #_print2('tb.query(\'FIELD_ID in [%s] AND STATE_ID in [%s]\', \'UVW\')'%(','.join(matched_field_indices.astype(str)), ','.join(valid_state_indices.astype(str))))
     #result = tb.query('FIELD_ID in [%s] AND STATE_ID in [%s]'%(','.join(matched_field_indices.astype(str)), ','.join(valid_state_indices.astype(str))), 'UVW')
     #uvw = result.getcol('UVW')
     tb.close()
@@ -574,9 +613,9 @@ def get_synbeam_and_imcell(vis, ref_freq_Hz = None, oversampling = 5.0):
     # 
     uvdist = np.sqrt(np.sum(np.square(uvw[0:2, :]), axis=0))
     maxuvdist = np.max(uvdist)
-    print2('maxuvdist = %s [m]'%(maxuvdist))
+    _print2('maxuvdist = %s [m]'%(maxuvdist))
     L80uvdist = np.percentile(uvdist, 80) # np.max(uvdist) # now I am using 90-th percentile of baselies, same as used by 'analysisUtils.py' pickCellSize() getBaselineStats(..., percentile=...)
-    print2('L80uvdist = %s [m] (80-th percentile)'%(L80uvdist))
+    _print2('L80uvdist = %s [m] (80-th percentile)'%(L80uvdist))
     # 
     synbeam = 2.99792458e8 / ref_freq_Hz / maxuvdist / np.pi * 180.0 * 3600.0 # arcsec
     synbeam = 0.574 * 2.99792458e8 / ref_freq_Hz / L80uvdist / np.pi * 180.0 * 3600.0 # arcsec # .574lambda/L80, see 'analysisUtils.py' estimateSynthesizedBeamFromASDM()
@@ -586,8 +625,8 @@ def get_synbeam_and_imcell(vis, ref_freq_Hz = None, oversampling = 5.0):
     #oversampling = 5.0
     imcell_arcsec = synbeam / oversampling
     imcell = '%sarcsec'%(imcell_arcsec)
-    print2('synbeam = %s [arcsec]'%(synbeam))
-    print2('imcell_arcsec = %s'%(imcell_arcsec))
+    _print2('synbeam = %s [arcsec]'%(synbeam))
+    _print2('imcell_arcsec = %s'%(imcell_arcsec))
     return synbeam, imcell
 
 
@@ -599,19 +638,19 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
     casalog.origin('get_spw_for_spectral_line')
     # 
     if redshift is None or rest_freq_GHz is None:
-        print2('Error! Please input redshift and rest_freq_GHz!')
+        _print2('Error! Please input redshift and rest_freq_GHz!')
         raise Exception('Error! Please input redshift and rest_freq_GHz!')
     # 
     rest_freq_Hz = rest_freq_GHz * 1e9
     line_freq_GHz = rest_freq_GHz / (1.0+redshift)
     if line_width_kms is None:
-        print2('Setting line_width_kms to default value 1000.0 km/s.')
+        _print2('Setting line_width_kms to default value 1000.0 km/s.')
         line_width_kms = 1000.0 # km/s
     line_width_MHz = line_width_kms/2.99792458e5*line_freq_GHz*1000. # km/s
     line_freq_range_Hz = [line_freq_GHz*1e9 - line_width_MHz/2.0*1e6, line_freq_GHz*1e9 + line_width_MHz/2.0*1e6]
     if verbose:
-        print2('line_width_MHz = %s'%(line_width_MHz))
-        print2('line_freq_range_Hz = %s'%(line_freq_range_Hz))
+        _print2('line_width_MHz = %s'%(line_width_MHz))
+        _print2('line_freq_range_Hz = %s'%(line_freq_range_Hz))
     # 
     #au.getScienceSpws(vis)
     #
@@ -633,7 +672,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
         chlast = ch0 + (nchan-1.) * chstep
         is_continuum_spw = ((nchan <= 4) or chstep>=31.25e6)
         if verbose:
-            print2('spw %s, ch0 %s, chlast %s, chstep %s, nchan %s, is_continuum_spw %s'%(i, ch0, chlast, chstep, nchan, is_continuum_spw))
+            _print2('spw %s, ch0 %s, chlast %s, chstep %s, nchan %s, is_continuum_spw %s'%(i, ch0, chlast, chstep, nchan, is_continuum_spw))
         if exclude_continuum_spw and is_continuum_spw:
             continue
         if (line_freq_range_Hz[1] > min(ch0, chlast)) and (line_freq_range_Hz[0] < max(ch0, chlast)) and nchan > 1:
@@ -656,7 +695,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
             spw_selection_str += '%d:%d~%d'%(i, chleft, chright)
     # 
     if verbose:
-        print2('spw_selection_str = %r'%(spw_selection_str))
+        _print2('spw_selection_str = %r'%(spw_selection_str))
     # 
     if return_dict:
         return spw_selection_str, spw_selection_dict
@@ -680,11 +719,24 @@ def get_mstransform_params_for_spectral_line(
         exclude_continuum_spw=True,
         verbose=True, 
     ):
+    """Get a mstransform parameter dict for the given spectral line.
+    
+    The returned dict can be directly used to call the CASA `mstransform` task, for example:: 
+        
+        mstransform_params = get_mstransform_params_for_spectral_line(vis, outputvis, field='my_target', redshift=3.0, rest_freq_GHz=230.538, line_width_kms=1000.0, chan_width_kms=20.0)
+        mstransform(**mstransform_params)
+    
+    Returns
+    -------
+    mstransform_params : dict
+        A dictionary that can be used as the input to the CASA `mstransform` task.
+    
+    """
     #
     casalog.origin('get_spw_for_spectral_line')
     # 
     if field is None or redshift is None or rest_freq_GHz is None or line_width_kms is None or chan_width_kms is None:
-        print2('Error! Please input field, redshift, rest_freq_GHz, line_width_kms and chan_width_kms!')
+        _print2('Error! Please input field, redshift, rest_freq_GHz, line_width_kms and chan_width_kms!')
         raise Exception('Error! Please input field, redshift, rest_freq_GHz, line_width_kms and chan_width_kms!')
     # 
     rest_freq_Hz = rest_freq_GHz * 1e9
@@ -718,13 +770,13 @@ def get_mstransform_params_for_spectral_line(
     # check channel width to be the same
     chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
     if verbose:
-        print2('chan_width_MHz: %s, spw_selection_dict: %s'%(chan_width_MHz, spw_selection_dict))
+        _print2('chan_width_MHz: %s, spw_selection_dict: %s'%(chan_width_MHz, spw_selection_dict))
     chan_width_MHz = np.abs(chan_width_MHz)
     min_chan_width_MHz = chan_width_MHz[0]
     for i,ispw in enumerate(list(spw_selection_dict.keys())):
         if chan_width_MHz[i] > output_chan_width_MHz:
             if verbose:
-                print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, chan_width_MHz[i], output_chan_width_MHz))
+                _print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, chan_width_MHz[i], output_chan_width_MHz))
             del spw_selection_dict[ispw]
         else:
             if min_chan_width_MHz > chan_width_MHz[i]:
@@ -752,7 +804,7 @@ def get_mstransform_params_for_spectral_line(
     #mstransform_params['keepmms'] = False
     # 
     if verbose:
-        print2('mstransform_params: mstransform('+', '.join("{!s}={!r}".format(k, mstransform_params[k]) for k in mstransform_params.keys())+')')
+        _print2('mstransform_params: mstransform('+', '.join("{!s}={!r}".format(k, mstransform_params[k]) for k in mstransform_params.keys())+')')
     # 
     return mstransform_params
 
@@ -777,7 +829,7 @@ def cleanup_tclean_products(imagename, suffix_list=None, cleanup_mask=True, clea
         if os.path.isdir(imagename+suffix):
             shutil.rmtree(imagename+suffix)
             if not os.path.isdir(imagename+suffix):
-                print2('Deleted "%s"'%(imagename+suffix))
+                _print2('Deleted "%s"'%(imagename+suffix))
             else:
                 if exit_on_error:
                     raise Exception('Error! Failed to cleanup tclean product data directory %s'%(imagename+suffix))
@@ -785,7 +837,7 @@ def cleanup_tclean_products(imagename, suffix_list=None, cleanup_mask=True, clea
             if os.path.isfile(imagename+suffix+'.fits'):
                 os.remove(imagename+suffix+'.fits')
                 if not os.path.isfile(imagename+suffix+'.fits'):
-                    print2('Deleted "%s"'%(imagename+suffix+'.fits'))
+                    _print2('Deleted "%s"'%(imagename+suffix+'.fits'))
                 else:
                     if exit_on_error:
                         raise Exception('Error! Failed to cleanup tclean product data file %s'%(imagename+suffix+'.fits'))
@@ -808,12 +860,12 @@ def apply_pbcor_to_tclean_image(imagename, cutoff=0.1, dropstokes=True, velocity
                 if not overwrite:
                     raise Exception('Found existing data "%s"! Please clean it up first!'%(outfile2))
                 else:
-                    print2('Found existing data "%s", overwriting it.'%(outfile2))
+                    _print2('Found existing data "%s", overwriting it.'%(outfile2))
                     shutil.rmtree(outfile2)
-            print2('Running CASA task: impbcor(imagename=%r, pbimage=%r, outfile=%r, mode=%r, cutoff=%s)'%(infile2, pbimage2, outfile2, 'divide', cutoff))
+            _print2('Running CASA task: impbcor(imagename=%r, pbimage=%r, outfile=%r, mode=%r, cutoff=%s)'%(infile2, pbimage2, outfile2, 'divide', cutoff))
             impbcor(imagename=infile2, pbimage=pbimage2, outfile=outfile2, mode='divide', cutoff=cutoff)
             if os.path.isdir(outfile2):
-                print2('Output to "%s"'%(outfile2))
+                _print2('Output to "%s"'%(outfile2))
             else:
                 if exit_on_error:
                     raise Exception('Error! Failed to run CASA impbcor and output "%s"'%(outfile2))
@@ -842,15 +894,15 @@ def export_tclean_products_as_fits_files(imagename, dropstokes=True, velocity=Fa
                     if exit_on_error:
                         raise Exception('Found existing tclean product fits file "%s"! Please clean it up first!'%(outfile))
                     else:
-                        print2('Found existing tclean product fits file "%s", will not overwrite it.'%(outfile))
+                        _print2('Found existing tclean product fits file "%s", will not overwrite it.'%(outfile))
                         continue
                 else:
-                    print2('Found existing tclean product fits file "%s", overwriting it.'%(outfile))
+                    _print2('Found existing tclean product fits file "%s", overwriting it.'%(outfile))
                     os.remove(outfile)
-            print2('Running CASA task: exportfits(%r, %r, dropstokes=%s, velocity=%s)'%(infile, outfile, dropstokes, velocity))
+            _print2('Running CASA task: exportfits(%r, %r, dropstokes=%s, velocity=%s)'%(infile, outfile, dropstokes, velocity))
             exportfits(infile, outfile, dropstokes=dropstokes, velocity=velocity)
             if os.path.isfile(outfile):
-                print2('Output to "%s"'%(outfile))
+                _print2('Output to "%s"'%(outfile))
             else:
                 raise Exception('Error! Failed to run CASA exportfits and output %s'%(imagename+suffix))
     # 
@@ -880,18 +932,18 @@ def imsmooth_tclean_image(infile, major, minor=None, pa=None, kernel='gaussian',
             if exit_on_error:
                 raise Exception('Found existing tclean product fits file "%s"! Please clean it up first!'%(outfile))
             else:
-                print2('Found existing tclean product fits file "%s", will not overwrite it.'%(outfile))
+                _print2('Found existing tclean product fits file "%s", will not overwrite it.'%(outfile))
                 run_imsmooth = False
         else:
-            print2('Found existing tclean product fits file "%s", overwriting it.'%(outfile))
+            _print2('Found existing tclean product fits file "%s", overwriting it.'%(outfile))
             shutil.rmtree(outfile)
     # run imsmooth
     if run_imsmooth:
-        print2('Running CASA task: imsmooth(imagename = %r, kernel = %r, major = %r, minor = %r, pa = %r, targetres = %s, outfile = %r)'%(infile, kernel, major, minor, pa, targetres, outfile))
+        _print2('Running CASA task: imsmooth(imagename = %r, kernel = %r, major = %r, minor = %r, pa = %r, targetres = %s, outfile = %r)'%(infile, kernel, major, minor, pa, targetres, outfile))
         imsmooth(imagename = infile, kernel = kernel, major = major, minor = minor, pa = pa, targetres = targetres, outfile = outfile)
     # check result
     if os.path.isdir(outfile):
-        print2('Output to "%s"'%(outfile))
+        _print2('Output to "%s"'%(outfile))
     else:
         if exit_on_error:
             raise Exception('Error! Failed to run CASA imsmooth and output %s'%(outfile))
@@ -902,16 +954,16 @@ def imsmooth_tclean_image(infile, major, minor=None, pa=None, kernel='gaussian',
             if exit_on_error:
                 raise Exception('Found existing tclean product fits file "%s"! Please clean it up first!'%(outfile))
             else:
-                print2('Found existing tclean product fits file "%s", will not overwrite it.'%(outfile))
+                _print2('Found existing tclean product fits file "%s", will not overwrite it.'%(outfile))
                 run_export_fits = False
         else:
-            print2('Found existing tclean product fits file "%s", overwriting it.'%(outfile))
+            _print2('Found existing tclean product fits file "%s", overwriting it.'%(outfile))
             os.remove(outfile+'.fits')
     # export fits file
     if export_fits and run_export_fits:
         exportfits(outfile, outfile+'.fits', dropstokes=dropstokes, velocity=velocity)
         if os.path.isfile(outfile+'.fits'):
-            print2('Output to "%s"'%(outfile+'.fits'))
+            _print2('Output to "%s"'%(outfile+'.fits'))
         else:
             if exit_on_error:
                 raise Exception('Error! Failed to run CASA exportfits and output %s'%(outfile+'.fits'))
