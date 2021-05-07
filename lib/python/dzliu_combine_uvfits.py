@@ -242,6 +242,7 @@ def dzliu_combine_uvfits(
             importuvfits_params = OrderedDict()
             importuvfits_params['fitsfile'] = list_of_uvfits[i]
             importuvfits_params['vis'] = vis
+            importuvfits_params['antnamescheme'] = 'new'
             _print_params('importuvfits', importuvfits_params)
             _save_params(importuvfits_params, vis+'.importuvfits.params.json')
             importuvfits(**importuvfits_params)
