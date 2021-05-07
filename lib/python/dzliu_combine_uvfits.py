@@ -40,25 +40,17 @@ try:
     def _version_greater_equal(version_str, compared_version_str):
         return _version_tuple(version_str) >= _version_tuple(compared_version_str)
     if _version_less_than(casadef.casa_version, '6.0.0'):
-        #from __main__ import default, inp, saveinputs
-        ##import task_tclean; task_tclean.tclean # this is what tclean.py calls
-        ##import tclean
-        ##import tclean_cli
-        from tclean_cli import tclean_cli_
-        tclean = tclean_cli_()
         from mstransform_cli import mstransform_cli_
         mstransform = mstransform_cli_()
-        from exportfits_cli import exportfits_cli_
-        exportfits = exportfits_cli_()
         from concat_cli import concat_cli_
         concat = concat_cli_()
-        from split_cli import split_cli_
-        split = split_cli_()
-        from imstat_cli import imstat_cli_
-        imstat = imstat_cli_()
+        from importuvfits_cli import importuvfits_cli_
+        importuvfits = importuvfits_cli_()
+        from exportuvfits_cli import exportuvfits_cli_
+        exportuvfits = exportuvfits_cli_()
     else:
         # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
-        from casatasks import tclean, mstransform, exportfits, concat, split, imstat
+        from casatasks import mstransform, concat, importuvfits, exportuvfits
         #from casatasks import sdbaseline
         #from casatools import ia
 except:
