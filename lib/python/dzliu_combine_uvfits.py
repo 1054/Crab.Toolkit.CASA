@@ -73,8 +73,13 @@ def _print2(message):
 # 
 # def _print_params
 # 
-def _print_params(prefix_str, dict_params):
-    print_str = prefix_str+'('+', '.join("{!s}={!r}".format(k, dict_params[k]) for k in dict_params.keys())+')'
+def _print_params(prefix_str, dict_params, exclude_keys = None):
+    keys = list(dict_params.keys())
+    if exclude_keys is not None:
+        for key in exclude_keys:
+            if key in keys:
+                keys.remove(key)
+    print_str = prefix_str+'('+', '.join("{!s}={!r}".format(k, dict_params[k]) for k in keys)+')'
     _print2(print_str)
 
 
@@ -338,8 +343,14 @@ def dzliu_combine_uvfits(
     if len(list_of_input_ms_dict) <= 1:
         _print2('Error! Could not find multiple input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
         for i in range(len(list_of_input_ms)):
-            _print_params('list_of_spw_info_dict[%d]: '%(i), list_of_spw_info_dict[i])
-            _print_params('list_of_field_info_dict[%d]: '%(i), list_of_field_info_dict[i])
+            spw_info_dict = copy.deepcopy(list_of_spw_info_dict[i])
+            field_info_dict = copy.deepcopy(list_of_field_info_dict[i])
+            for key in spw_info_dict:
+                del spw_info_dict[key]['CHAN_FREQ']
+            for key in field_info_dict:
+                del field_info_dict[key]['CHAN_FREQ']
+            _print_params('list_of_spw_info_dict[%d]: '%(i), spw_info_dict)
+            _print_params('list_of_field_info_dict[%d]: '%(i), field_info_dict)
         raise Exception('Error! Could not find multiple input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
     
     common_min_freq = np.max([input_ms_dict['min_freq'] for input_ms_dict in list_of_input_ms_dict])
