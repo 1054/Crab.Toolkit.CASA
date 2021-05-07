@@ -216,9 +216,11 @@ def _get_field_info_dict(vis, target_ra, target_dec, separation_limit=2.0, outpu
             target_dec_radian = np.deg2rad(target_dec)
             separation_limit_radian = np.deg2rad(separation_limit/3600.0)
             separation_radian = np.sqrt((delay_dir[0]-target_ra_radian)**2 + (delay_dir[1]-target_dec_radian)**2)
+            separation_arcsec = np.rad2deg(separation_radian)*3600.0
             if verbose:
-                _print2('get_field_info_dict %d NAME %r DELAY_DIR %s %s target ra dec %s %s sep %s sep limit %s'%(\
-                        i, field_name, delay_dir[0], delay_dir[1], target_ra_radian, target_dec_radian, separation_radian, separation_limit_radian))
+                _print2('get_field_info_dict %d NAME %r DELAY_DIR %s %s target ra dec %s %s sep %s (%s arcsec) sep limit %s (%s arcsec)'%(\
+                        i, field_name, delay_dir[0], delay_dir[1], target_ra_radian, target_dec_radian, 
+                        separation_radian, separation_arcsec, separation_limit_radian, separation_limit))
             if separation_radian > separation_limit_radian:
                 continue
         field_info_dict[i] = {
