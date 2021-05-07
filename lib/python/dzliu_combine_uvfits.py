@@ -328,7 +328,8 @@ def dzliu_combine_uvfits(
             input_ms_dict['field'] = ','.join([str(k).strip() for k in field_info_dict.keys()])
             input_ms_dict['vis'] = vis
             list_of_input_ms_dict.append(input_ms_dict)
-            _print2('list_of_input_ms_dict[%d]: min_freq: %s, max_freq: %s, chan_width: %s, spw: %r, field: %r'%(i, min_freq, max_freq, chan_width, spw, field))
+            _print2('list_of_input_ms_dict[%d]: min_freq: %s, max_freq: %s, chan_width: %s, spw: %r, field: %r'%(i, \
+                    input_ms_dict['min_freq'], input_ms_dict['max_freq'], input_ms_dict['chan_width'], input_ms_dict['spw'], input_ms_dict['field']))
     
     if len(list_of_input_ms_dict) == 0:
         _print2('Error! Could not find any input uvfits that contain the target frequency %s and RA Dec %s %s.'%(target_frequency, target_ra, target_dec))
