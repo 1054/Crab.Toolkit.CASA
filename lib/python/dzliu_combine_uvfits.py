@@ -107,6 +107,14 @@ def _get_spw_info_dict(vis, target_frequency=None, output_json_file=None, only_l
         chan_freq = tb.getcell('CHAN_FREQ', i)
         chan_width = tb.getcell('CHAN_WIDTH', i)
         ref_freq = tb.getcell('REF_FREQUENCY', i)
+        if not np.isscalar(spw_name): 
+            spw_name = spw_name[0]
+        if not np.isscalar(num_chan): 
+            num_chan = num_chan[0]
+        if not np.isscalar(chan_width): 
+            chan_width = np.mean(chan_width)
+        if not np.isscalar(ref_freq): 
+            ref_freq = np.mean(ref_freq)
         min_freq = np.min(chan_freq)
         max_freq = np.max(chan_freq)
         # if only_line_spw is True, make sure this spw is a spectral line spw with more than one channel and in ALMA FDM mode
