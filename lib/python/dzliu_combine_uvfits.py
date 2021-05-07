@@ -82,13 +82,19 @@ def _print_params(prefix_str, dict_params):
 # 
 # def _save_params
 # 
+class _numpy_array_encoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
 def _save_params(dict_params, json_file):
     if json_file.find(os.sep) >= 0:
         output_dir = os.path.dirname(json_file)
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
     with open(json_file, 'w') as fp:
-        json.dump(dict_params, fp, indent = 4)
+        json.dump(dict_params, fp, indent = 4, cls = _numpy_array_encoder)
 
 
 
