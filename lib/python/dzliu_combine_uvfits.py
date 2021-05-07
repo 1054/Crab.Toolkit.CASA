@@ -333,13 +333,12 @@ def dzliu_combine_uvfits(
             if len(spw_info_dict) > 1 and np.max(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))) > 1:
                 _print2('Warning! More than one spws are in the ms and they do not have the same channel number. ')
                 argmin_chan_width = np.argmin(np.array([np.abs(spw_info_dict[k]['CHAN_WIDTH']) for k in spw_info_dict.keys()])).ravel()
-                ispw_min_chan_width = list(spw_info_dict.keys())[argmin_chan_width]
-                if not np.isscalar(ispw_min_chan_width):
-                    if len(ispw_min_chan_width) > 1:
-                        argmax_num_chan = np.argmax(np.array([np.abs(spw_info_dict[k]['NUM_CHAN']) for k in ispw_min_chan_width])).ravel()[0]
-                        ispw_min_chan_width = ispw_min_chan_width[argmax_num_chan]
-                    else:
-                        ispw_min_chan_width = ispw_min_chan_width[0]
+                ispw_min_chan_width = np.array(list(spw_info_dict.keys()))[argmin_chan_width]
+                if len(ispw_min_chan_width) > 1:
+                    argmax_num_chan = np.argmax(np.array([np.abs(spw_info_dict[k]['NUM_CHAN']) for k in ispw_min_chan_width])).ravel()[0]
+                    ispw_min_chan_width = ispw_min_chan_width[argmax_num_chan]
+                else:
+                    ispw_min_chan_width = ispw_min_chan_width[0]
                 _print2('We will take the minimum chan_width spw %s, and exclude others.'%(ispw_min_chan_width))
                 ispw_to_exclude = []
                 for ispw in spw_info_dict.keys():
