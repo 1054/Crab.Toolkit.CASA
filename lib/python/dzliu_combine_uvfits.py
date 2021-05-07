@@ -315,7 +315,7 @@ def dzliu_combine_uvfits(
             _print_params('list_of_input_ms_dict[%d]: '%(i), list_of_input_ms_dict[i])
         raise Exception('Error! Could not find a common intersected frequency range among the input uvfits that contain the target frequency %s.'%(target_frequency))
     
-    common_chan_width = np.max([input_ms_dict['chan_width'] for input_ms_dict in list_of_input_ms_dict])
+    common_chan_width = np.max([np.abs(input_ms_dict['chan_width']) for input_ms_dict in list_of_input_ms_dict])
     
     # mstransform
     list_of_mstransformed_ms = []
@@ -327,12 +327,12 @@ def dzliu_combine_uvfits(
         outputvis = working_dir+os.sep+'mstransformed_vis_%d.ms'%(i+1)
         if not os.path.isdir(outputvis):
             # check if the input vis has more than one spws and these spws do not have the same channel number
-            for ispw in spw_info_dict.keys():
-                _print_params('spw_info_dict[%d]: '%(ispw), spw_info_dict[ispw])
-            if len(spw_info_dict) > 1 and not np.max(np.diff([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()])) > 1:
+            _print2(str([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))
+            _print2(str(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))))
+            if len(spw_info_dict) > 1 and not np.max(np.diff(np.array([spw_info_dict[k]['NUM_CHAN'] for k in spw_info_dict.keys()]))) > 1:
                 _print2('Warning! More than one spws are in the ms and they do not have the same channel number. This may cause some error during mstransform.')
-                for ispw in spw_info_dict.keys():
-                    _print_params('spw_info_dict[%d]: '%(ispw), spw_info_dict[ispw])
+                #for ispw in spw_info_dict.keys():
+                #    _print_params('spw_info_dict[%d]: '%(ispw), spw_info_dict[ispw])
                 pass
             # 
             mstransform_params = OrderedDict()
