@@ -134,6 +134,7 @@ os.chdir(working_dir)
 
 
 # if user has input a uvfits, then importuvfits
+working_vis = input_vis
 if input_vis.endswith('.uvfits'):
     working_uvfits = input_vis
     working_vis = re.sub(r'\.uvfits$', r'.ms', os.path.basename(working_uvfits))

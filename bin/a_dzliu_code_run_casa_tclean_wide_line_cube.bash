@@ -80,6 +80,7 @@ export CASA_COMMANDLINE_OUT
 # run python script in CASA
 script_dir=$(dirname $(perl -MCwd -e 'print Cwd::abs_path shift' "${BASH_SOURCE[0]}"))
 script_name=$(basename "${BASH_SOURCE[0]}" | perl -p -e 's/\.bash$//g')
+echo "casa --nogui --log2term -c \"exec(compile(open(\\\"${script_dir}/${script_name}.py\\\").read(),\\\"${script_dir}/${script_name}.py\\\",\\\"exec\\\"),globals(),locals())\""
 casa --nogui --log2term -c "exec(compile(open(\"${script_dir}/${script_name}.py\").read(),\"${script_dir}/${script_name}.py\",\"exec\"),globals(),locals())"
 
 #locals().update(dict(input_vis='aaa',output_prefix='bbb'))
