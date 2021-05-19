@@ -59,14 +59,32 @@ else:
 
 
 # 
+# global casalog_origin2
+# 
+global casalog_origin2
+global casalog_origin
+casalog_origin2 = 'dzliu_clean'
+casalog_origin = 'dzliu_clean'
+def set_casalog_origin(origin):
+    global casalog_origin2
+    global casalog_origin
+    casalog_origin2 = casalog_origin
+    casalog_origin = origin
+    casalog.origin(casalog_origin)
+def restore_casalog_origin():
+    global casalog_origin2
+    global casalog_origin
+    casalog_origin = casalog_origin2
+    casalog.origin(casalog_origin)
+
+
+
+# 
 # def print2
 # 
 def print2(message):
     print(message)
     casalog.post(message, 'INFO')
-
-
-
 
 
 
@@ -191,7 +209,7 @@ def get_optimized_imsize(imsize, return_decomposed_factors = False):
     # 
     # No CASA module/function used here.
     # 
-    #casalog.origin('get_optimized_imsize')
+    #set_casalog_origin('get_optimized_imsize')
     # 
     # try to make imsize be even and only factorizable by 2,3,5,7
     imsize = int(imsize)
@@ -244,7 +262,7 @@ def get_antenn_diameter(vis):
     # 
     # Requires CASA module/function tb.
     # 
-    casalog.origin('get_antenn_diameter')
+    set_casalog_origin('get_antenn_diameter')
     # 
     tb.open(vis+os.sep+'ANTENNA')
     ant_names = tb.getcol('NAME')
@@ -254,6 +272,8 @@ def get_antenn_diameter(vis):
     minantdiam = np.min(ant_diams) # meter
     print2('ant_diams = %s'%(ant_diams))
     print2('minantdiam = %s [m]'%(minantdiam))
+    # 
+    restore_casalog_origin()
     # 
     return minantdiam
 
@@ -275,7 +295,7 @@ def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
     #
     # Requires CASA module/function tb.
     #
-    casalog.origin('get_field_phasecenters')
+    set_casalog_origin('get_field_phasecenters')
     #
     tb.open(vis+os.sep+'FIELD')
     field_names = tb.getcol('NAME')
@@ -310,6 +330,9 @@ def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
     #
     matched_field_indices = np.array(matched_field_indices)
     matched_field_phasecenters = np.array(matched_field_phasecenters).T # two columns, nrows
+    # 
+    restore_casalog_origin()
+    # 
     return matched_field_name, matched_field_indices, matched_field_phasecenters
 
 
@@ -319,7 +342,7 @@ def get_datacolumn(vis):
     # 
     # Requires CASA module/function tb.
     # 
-    casalog.origin('get_datacolumn')
+    set_casalog_origin('get_datacolumn')
     # 
     tb.open(vis)
     if 'CORRECTED_DATA' in tb.colnames():
@@ -327,6 +350,8 @@ def get_datacolumn(vis):
     else:
         datacolumn = 'DATA'
     tb.close()
+    # 
+    restore_casalog_origin()
     # 
     return datacolumn
 
@@ -337,7 +362,7 @@ def fix_zero_rest_frequency(vis):
     # 
     # Requires CASA module/function tb.
     # 
-    casalog.origin('fix_zero_rest_frequency')
+    set_casalog_origin('fix_zero_rest_frequency')
     # 
     do_fix_zero_rest_frequency = False
     tb.open(vis+os.sep+'SOURCE')
@@ -366,6 +391,8 @@ def fix_zero_rest_frequency(vis):
                 tb.putcell('REST_FREQUENCY', i, ref_frequency)
                 print2('Fixing vis/SOURCE table row %d REST_FREQUENCY to %s'%(i, ref_frequency))
         tb.close()
+    # 
+    restore_casalog_origin()
     # 
     return
     
@@ -429,7 +456,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
     # 
     # Requires CASA module/function tb, default, inp, saveinputs, mstransform.
     # 
-    casalog.origin('split_continuum_visibilities')
+    set_casalog_origin('split_continuum_visibilities')
     
     # 
     # check existing file
@@ -444,6 +471,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
     spw_chan_freq_col = [tb.getcell('CHAN_FREQ', i) for i in range(tb.nrows())]
     spw_chan_width_col = [tb.getcell('CHAN_WIDTH', i) for i in range(tb.nrows())]
     spw_ref_freq_col = tb.getcol('REF_FREQUENCY')
+    spw_ref_chan_col = tb.getcol('MEAS_FREQ_REF')
     tb.close()
     
     valid_spw_indicies = np.argwhere([re.match(r'.*FULL_RES.*', t) is not None for t in spw_names]).flatten().tolist()
@@ -531,14 +559,15 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
             spw_chan_freq_list = spw_chan_freq_col[i]
             spw_chan_width_list = spw_chan_width_col[i]
             spw_ref_freq = spw_ref_freq_col[i]
-            print2('spw_%d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
+            spw_ref_chan = spw_ref_chan_col[i]
+            print2('spw_%d, ref_chan %d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_chan, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
             # find the target line in these spw
             spw_chan_selection_mask = np.array([True]*len(spw_chan_width_list)) # np.full(len(spw_chan_width_list), True)
             for k in range(len(all_line_frequency)):
                 ref_freq_Hz = spw_chan_freq_list[0]
                 width_freq_Hz = spw_chan_width_list[0]
                 start_freq_Hz = all_line_frequency[k] - 0.5*(all_line_velocity_width[k]/2.99792458e5)*spw_ref_freq #<TODO># lowest freq (as document says) or left-most freq (depending on positive/negative chanwidth)?
-                start = (start_freq_Hz - ref_freq_Hz) / width_freq_Hz
+                start = (start_freq_Hz - ref_freq_Hz) / width_freq_Hz + ref_chan - 1 # 0-based, see tclean-task.html
                 start = int(np.round(start))
                 nchan = (all_line_velocity_width[k]/2.99792458e5)*spw_ref_freq / width_freq_Hz # the output number of channels, covering the full line_velocity_width
                 nchan = int(np.round(nchan))
@@ -578,7 +607,8 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
             spw_chan_freq_list = spw_chan_freq_col[i]
             spw_chan_width_list = spw_chan_width_col[i]
             spw_ref_freq = spw_ref_freq_col[i]
-            print2('spw_%d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
+            spw_ref_chan = spw_ref_chan_col[i]
+            print2('spw_%d, ref_chan %d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_chan, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
             # 
             spw_chan_selection_mask = np.array([True]*len(spw_chan_width_list)) # np.full(len(spw_chan_width_list), True) # select all channels
             # 
@@ -661,6 +691,9 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
     else:
         print2('Output to "%s"!'%(output_ms))
     
+    # 
+    restore_casalog_origin()
+    
     #raise NotImplementedError()
     
     return
@@ -676,7 +709,7 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
     # 
     # Requires CASA module/function tb, default, inp, saveinputs, mstransform.
     # 
-    casalog.origin('split_line_visibilities')
+    set_casalog_origin('split_line_visibilities')
     
     # 
     # check existing file
@@ -698,37 +731,46 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
     spw_chan_freq_col = [tb.getcell('CHAN_FREQ', i) for i in range(tb.nrows())]
     spw_chan_width_col = [tb.getcell('CHAN_WIDTH', i) for i in range(tb.nrows())]
     spw_ref_freq_col = tb.getcol('REF_FREQUENCY')
+    spw_ref_chan_col = tb.getcol('MEAS_FREQ_REF')
     tb.close()
     
     #print('spw_names:', spw_names)
     valid_spw_indicies = np.argwhere([re.match(r'.*FULL_RES.*', t) is not None for t in spw_names]).flatten().tolist()
     if len(valid_spw_indicies) == 0:
-        valid_spw_indicies = np.argwhere([re.match(r'.*WVR.*', t) is None for t in spw_names]).flatten().tolist()
-    ref_freq_Hz = np.nan
+        valid_spw_indicies = np.argwhere([(re.match(r'.*WVR.*', t) is None and re.match(r'.*CH_AVG.*', t) is None) for t in spw_names]).flatten().tolist()
+    #ref_freq_Hz = np.nan
     
     
     # 
     # calc linefreq
     # 
     # <20200122> we now allow user to input line_name = 'cube', so that it cleans the whole cube
+    lineSpwIds = [] # the target line may be contained in multiple spws
+    lineSpwChanWidths = [] # a list of of list of channel widths in Hz for each matched line spw, for all matched line spws
+    lineSpwChanFreqs = [] # a list of list of channel freqs in Hz for each matched line spw, for all matched line spws
+    lineSpwRefFreqs = [] # a list of channel reference freqs in Hz for each matched line spw, for all matched line spws
+    lineSpwRefChans = [] # a list of channel reference channel number (1-based) for each matched line spw, for all matched line spws
     if line_name == 'cube' or line_name == 'full_cube':
-        linespws = []
-        linechanwidths = []
-        linechanfreq = []
-        linechanfreqs = []
         for i in valid_spw_indicies:
             spw_chan_freq_list = spw_chan_freq_col[i]
             spw_chan_width_list = spw_chan_width_col[i]
             spw_ref_freq = spw_ref_freq_col[i]
-            print2('spw_%d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
+            spw_ref_chan = spw_ref_chan_col[i]
+            print2('spw_%d, ref_chan %d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_chan, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
             # add this spw to our output
-            linespws.append(i)
-            linechanwidths.append(spw_chan_width_list) # append all valid spw 
-            linechanfreq = spw_chan_freq_list
-            linechanfreqs.append(spw_chan_freq_list)
-        ref_freq_Hz = (np.max(linechanfreqs) + np.min(linechanfreqs)) / 2.0
-        linefreq = (np.max(linechanfreqs) + np.min(linechanfreqs)) / 2.0
-        line_velocity_width = (np.max(linechanfreqs) - np.min(linechanfreqs)) / ref_freq_Hz * 2.99792458e5
+            lineSpwIds.append(i)
+            lineSpwChanWidths.append(spw_chan_width_list) # append all valid spw 
+            lineSpwChanFreqs.append(spw_chan_freq_list)
+            lineSpwRefFreqs.append(spw_ref_freq)
+            lineSpwRefChans.append(spw_ref_chan)
+        #ref_freq_Hz = (np.max(lineSpwChanFreqs) + np.min(lineSpwChanFreqs)) / 2.0 # set to the center of all selected spws
+        #ref_chan = 
+        #t_max_freq = np.max([np.max(t) for t in lineSpwChanFreqs])
+        #t_min_freq = np.min([np.min(t) for t in lineSpwChanFreqs])
+        #linefreq = (t_max_freq + t_min_freq) / 2.0 # set to the center of all selected spws
+        linefreq = np.nan
+        #line_velocity_width = (np.max(lineSpwChanFreqs) - np.min(lineSpwChanFreqs)) / ref_freq_Hz * 2.99792458e5 # set to full frequency range of all selected spws
+        #line_velocity_width = (np.max(lineSpwChanFreqs) - np.min(lineSpwChanFreqs)) / linefreq * 2.99792458e5 # set to full frequency range of all selected spws
         #line_velocity_resolution = -1
     else:
         # 
@@ -738,53 +780,71 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
         linefreq = lab_line_freq/(1.0+(line_velocity/2.99792458e5))*1e9 # Hz, for velocity with optical definition
         # 
         # find which spw(s) contain(s) the target line
-        linespws = [] # the target line may be contained in multiple spws?
-        linechanwidths = [] # a list of channel widths in Hz for each matched line spw, for all matched line spws
-        #linechanfreq = []
-        #linechanfreqs = []
         for i in valid_spw_indicies:
             spw_chan_freq_list = spw_chan_freq_col[i]
             spw_chan_width_list = spw_chan_width_col[i]
             spw_ref_freq = spw_ref_freq_col[i]
-            print2('spw_%d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
+            spw_ref_chan = spw_ref_chan_col[i]
+            print2('spw_%d, ref_chan %d, ref_freq %.3e Hz, chan_freq %.3e .. %.3e Hz (%d), chan_width %.3e Hz'%(i, spw_ref_chan, spw_ref_freq, np.max(spw_chan_freq_list), np.min(spw_chan_freq_list), len(spw_chan_freq_list), np.min(spw_chan_width_list) ) )
             # find the target line in these spw
             if linefreq >= np.min(spw_chan_freq_list) and linefreq <= np.max(spw_chan_freq_list):
                 # found our target line within this spw
-                ref_freq_Hz = spw_ref_freq
-                linespws.append(i)
-                linechanwidths.append(spw_chan_width_list) # append all valid spw 
-                #linechanfreq = spw_chan_freq_list
-                #linechanfreqs.append(spw_chan_freq_list)
-        
-        if len(linespws) == 0:
-            raise ValueError('Error! Target line %s at rest-frame %.3f GHz was not covered by the "SPECTRAL_WINDOW" of the input vis "%s"!'%(lab_line_name, lab_line_freq, dataset_ms))
+                #ref_freq_Hz = spw_ref_freq
+                lineSpwIds.append(i)
+                lineSpwChanWidths.append(spw_chan_width_list)
+                lineSpwChanFreqs.append(spw_chan_freq_list)
+                lineSpwRefFreqs.append(spw_ref_freq)
+                lineSpwRefChans.append(spw_ref_chan)
+    # 
+    if len(lineSpwIds) == 0:
+        print2('Error! Target line %s at rest-frame %.3f GHz was not covered by the "SPECTRAL_WINDOW" of the input vis "%s"!'%(lab_line_name, lab_line_freq, dataset_ms))
+        raise Exception('Error! Target line %s at rest-frame %.3f GHz was not covered by the "SPECTRAL_WINDOW" of the input vis "%s"!'%(lab_line_name, lab_line_freq, dataset_ms))
     
-    # if we have multiple spw and some linechanwidth do not match, then we only use the best linechanwidth spw
+    # if user has not input a line_velocity_resolution, then we take the best line_velocity_resolution
+    #if line_velocity_resolution <= 0.0:
+    
+    # if there are multiple line spws, we need to make sure that have velocity resolution of spws should be better than the line_velocity_width
     valid_linespws_indicies = []
-    linechanwidth = np.min([np.min(t) for t in linechanwidths])
-    for i in range(len(linespws)):
-        linechanwidth_i = np.min(linechanwidths[i])
+    linechanwidth = np.min([np.min(np.abs(t)) for t in lineSpwChanWidths])
+    for i in range(len(lineSpwIds)):
+        linechanwidth_i = np.min(np.abs(lineSpwChanWidths[i]))
         if np.isclose(linechanwidth_i, linechanwidth):
             valid_linespws_indicies.append(i)
         else:
             print2('Warning! Discared spw %d due to coarse channel width of %.3e Hz than the finest channel width of %.3e Hz.'%(i, linechanwidth_i, linechanwidth))
     
-    linespws = [linespws[i] for i in valid_linespws_indicies]
-    linechanwidths = [linechanwidths[i] for i in valid_linespws_indicies]
-    #linechanfreq = linechanfreq[valid_linespws_indicies]
-    #linechanfreqs = linechanfreqs[valid_linespws_indicies]
+    # select valid spws
+    lineSpwIds = [lineSpwIds[i] for i in valid_linespws_indicies]
+    lineSpwChanWidths = [lineSpwChanWidths[i] for i in valid_linespws_indicies]
+    lineSpwChanFreqs = [lineSpwChanFreqs[i] for i in valid_linespws_indicies]
+    lineSpwRefFreqs = [lineSpwRefFreqs[i] for i in valid_linespws_indicies]
+    lineSpwRefChans = [lineSpwRefChans[i] for i in valid_linespws_indicies]
     
-    # make numpy array
-    linespws = np.array(linespws)
+    # if more than one spws are selected, then take the average REF_FREQUENCY
+    #if len(lineSpwIds) >= 2:
+    #    print2('Warning! More than one spws contain the line, we will take the average REF_FREQUENCY.')
+    #    ref_freq_Hz = np.mean(lineSpwRefFreqs)
+    
+    # if linefreq is not given by the line_name, then set it to the center of bandwidth
+    t_max_freq = np.max([np.max(t) for t in lineSpwChanFreqs])
+    t_min_freq = np.min([np.min(t) for t in lineSpwChanFreqs])
+    if np.isnan(linefreq):
+        linefreq = (t_max_freq + t_min_freq) / 2.0 # set to the center of all selected spws
     
     # convert channel width from frequency to velocity
-    linechanwidth = np.min([np.min(t) for t in linechanwidths])
-    linechanwidth_kms = linechanwidth / ref_freq_Hz * 2.99792458e5 # km/s
-    #linechanwidths_kms = linechanwidths / ref_freq_Hz * 2.99792458e5 # km/s
+    linechanwidth = np.min([np.min(t) for t in lineSpwChanWidths])
+    #linechanwidth_kms = linechanwidth / ref_freq_Hz * 2.99792458e5 # km/s
+    #linechanwidths_kms = lineSpwChanWidths / ref_freq_Hz * 2.99792458e5 # km/s
+    linechanwidth_kms = np.min([np.min(t/q*2.99792458e5) for t,q in list(zip(lineSpwChanWidths,lineSpwRefFreqs))]) # km/s
     
-    print2('linespws = %s'%(linespws))
+    print2('lineSpwIds = %s'%(lineSpwIds))
+    print2('lineSpwRefFreqs = %s'%(lineSpwRefFreqs))
+    print2('lineSpwRefChans = %s'%(lineSpwRefChans))
+    print2('linefreq = %s'%(linefreq))
     print2('linechanwidth = %.3e Hz'%(linechanwidth))
-    print2('linechanwidth_kms = %s'%(linechanwidth_kms))
+    print2('linechanwidth_kms = %s km/s'%(linechanwidth_kms))
+    print2('line_velocity_width = %s km/s, for output, a negative value means full bandwidth'%(line_velocity_width))
+    print2('line_velocity_resolution = %s km/s, for output, a negative value means original channel width'%(line_velocity_resolution))
     
     # 
     # chanbin
@@ -799,37 +859,91 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
     # nchan and start and width
     # 
     regridms = True
-    if line_velocity_resolution > 0:
-        # if the user has input a positive line_velocity_resolution, then we convert it to channel width factor
+    if line_velocity_resolution > 0.0 or line_velocity_width > 0.0:
+        # if the user has input a positive line_velocity_resolution, then we convert it to channel width factor,
+        # or if the user has input a positive line_velocity_width, then we also need freuquency mode to adjust the channel selection.
         mode = 'frequency'
-        width_channel_number = line_velocity_resolution / np.abs(linechanwidth_kms[0])
+        if line_velocity_resolution <= 0.0:
+            line_velocity_resolution = np.abs(linechanwidth_kms)
+        width_channel_number = line_velocity_resolution / np.abs(linechanwidth_kms)
         width_channel_number = int(np.round(width_channel_number)) # in units of channel number, like a rebin factor
-        width_freq_Hz = width_channel_number * linechanwidth
+        width_freq_Hz = width_channel_number * np.abs(linechanwidth)
         width = '%.0fHz'%(width_freq_Hz)
-        start_freq_Hz = linefreq - 0.5*(line_velocity_width/2.99792458e5)*ref_freq_Hz #<TODO># lowest freq (as document says) or left-most freq (depending on positive/negative chanwidth)?
-        start = '%.0fHz'%(start_freq_Hz)
-        start_chan = (linefreq - ref_freq_Hz) / width_freq_Hz
-        start_chan = int(np.round(start_chan))
-        restfreq = '%.0fHz'%(ref_freq_Hz)
-        nchan = (line_velocity_width/2.99792458e5)*ref_freq_Hz / width_freq_Hz # the output number of channels, covering the full line_velocity_width
-        nchan = int(np.round(nchan))
+        if line_velocity_width > 0.0:
+            start_freq_Hz = linefreq - 0.5*(line_velocity_width/2.99792458e5)*linefreq #<TODO># lowest freq (as document says) or left-most freq (depending on positive/negative chanwidth)?
+            start = '%.0fHz'%(start_freq_Hz)
+            nchan = (line_velocity_width/2.99792458e5)*linefreq / width_freq_Hz # the output number of channels, covering the full line_velocity_width
+            nchan = int(np.round(nchan))
+        else:
+            # if user has input a negative line_velocity_width, then we use the full bandwidth
+            #t_max_freq = np.max([np.max(t) for t in lineSpwChanFreqs])
+            #t_min_freq = np.min([np.min(t) for t in lineSpwChanFreqs])
+            start_freq_Hz = t_min_freq
+            start = '%.0fHz'%(start_freq_Hz)
+            nchan = (t_max_freq-t_min_freq) / width_freq_Hz + 1
+            nchan = int(np.round(nchan))
+        #start_chan = (linefreq - ref_freq_Hz) / width_freq_Hz + ref_chan - 1 #<20210511><BUG><FIXED># 0-based, see tclean-task.html 
+        #start_chan = int(np.round(start_chan))
+        #restfreq = '%.0fHz'%(ref_freq_Hz)
     else:
-        # otherwise keep the original channel width
+        # otherwise keep the original channel width and full bandwidth
         mode = 'channel'
+        regridms = False
         width_channel_number = 1
-        width_freq_Hz = width_channel_number * linechanwidth
+        width_freq_Hz = width_channel_number * np.abs(linechanwidth) #<20210511><BUG><FIXED># linechanwidth -> np.abs(linechanwidth). This affects datasets with negative chan freq width, and results into truncated channel ranges.
         width = 1
-        start_freq_Hz = linefreq - 0.5*(line_velocity_width/2.99792458e5)*ref_freq_Hz #<TODO># lowest freq (as document says) or left-most freq (depending on positive/negative chanwidth)?
-        start = (start_freq_Hz - ref_freq_Hz) / width_freq_Hz
-        start = int(np.round(start))
-        restfreq = '%.0fHz'%(ref_freq_Hz)
-        nchan = (line_velocity_width/2.99792458e5)*ref_freq_Hz / width_freq_Hz # the output number of channels, covering the full line_velocity_width
-        nchan = int(np.round(nchan))
+        start_freq_Hz = linefreq - 0.5*(line_velocity_width/2.99792458e5)*linefreq #<TODO># lowest freq (as document says) or left-most freq (depending on positive/negative chanwidth)?
+        if line_velocity_width > 0.0:
+            # well this should not happen because we will use frequency mode if line_velocity_width > 0.0, see above.
+            nchan = (line_velocity_width/2.99792458e5)*linefreq / width_freq_Hz # the output number of channels, covering the full line_velocity_width
+            nchan = int(np.round(nchan))
+            start_chan_list = []
+            for i in range(len(lineSpwIds)):
+                start_chan_one = (start_freq_Hz - lineSpwRefFreqs[i]) / np.mean(lineSpwChanWidths[i]) + lineSpwRefChans[i] - 1 #<20210511><BUG><FIXED># 0-based, see tclean-task.html 
+                start_chan_one = int(np.round(start_chan_one))
+                #<TODO># note that if we do not use frequency mode this is inaccurate and can not deal with negative chan freq width
+            start = ','.join(np.array(start_chan_list).astype(str)) #<TODO># can we really input multiple start?
+        else:
+            # if user has input a negative line_velocity_width, then we use the full bandwidth
+            #t_max_freq = np.max([np.max(t) for t in lineSpwChanFreqs])
+            #t_min_freq = np.min([np.min(t) for t in lineSpwChanFreqs])
+            start = ''
+            nchan = (t_max_freq-t_min_freq) / width_freq_Hz + 1
+            nchan = int(np.round(nchan))
+        #restfreq = '%.0fHz'%(ref_freq_Hz)
+        #<20210511><BUG><FIXED># This bug affects all previous image cubes which have negative channel frequency width. 
+        #<20210511><BUG><FIXED># Coincidentally image cubes with positive channel frequency width are unaffected because
+        #<20210511><BUG><FIXED># previously start = (start_freq_Hz - ref_freq_Hz) / width_freq_Hz which is negative and . 
+        #<20210511><BUG><FIXED># treated as 0. 
     
     # 
     # select galaxy name
     # 
     matched_field_name, matched_field_indices, matched_field_phasecenters = get_field_phasecenters(dataset_ms, galaxy_name)
+    
+    # 
+    # check whether we can combinespws
+    # 
+    combinespws = False
+    if len(lineSpwIds) >= 2:
+        first_chan_num = 0
+        check_chan_num_consistency = True
+        for i in range(len(lineSpwIds)):
+            if first_chan_num == 0:
+                first_chan_num = len(lineSpwChanFreqs[i])
+            elif first_chan_num != len(lineSpwChanFreqs[i]):
+                check_chan_num_consistency = False
+                break
+        # 
+        if not check_chan_num_consistency:
+            # try to fix different chan num issue
+            #raise NotImplementedError()
+            combinespws = False
+            print2('Warning! There are multiple line spws and their channel numbers are different! mstransform has to use combinespws = False.')
+        # 
+        if check_chan_num_consistency:
+            combinespws = True
+    
     
     # 
     # mstransform
@@ -838,15 +952,15 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
     mstransform_parameters['vis'] = dataset_ms
     mstransform_parameters['outputvis'] = output_ms
     mstransform_parameters['field'] = ','.join(matched_field_indices.astype(str))
-    mstransform_parameters['spw'] = ','.join(linespws.astype(str))
+    mstransform_parameters['spw'] = ','.join(np.array(lineSpwIds).astype(str))
     mstransform_parameters['datacolumn'] = datacolumn
-    mstransform_parameters['regridms'] = True
+    mstransform_parameters['regridms'] = regridms
     mstransform_parameters['mode'] = mode
     mstransform_parameters['start'] = start
     mstransform_parameters['width'] = width
     mstransform_parameters['nchan'] = nchan
-    mstransform_parameters['nspw'] = 1
-    #mstransform_parameters['combinespws'] = True
+    mstransform_parameters['nspw'] = 1 # it means, do not separate the spws.
+    mstransform_parameters['combinespws'] = combinespws
     mstransform_parameters['outframe'] = 'LSRK'
     mstransform_parameters['veltype'] = 'radio'
     mstransform_parameters['timeaverage'] = True
@@ -875,6 +989,9 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
     
     if not os.path.isdir(output_ms):
         raise Exception('Error! Failed to run mstransform and produce "%s"!'%(output_ms))
+    
+    # 
+    restore_casalog_origin()
 
 
 
@@ -911,7 +1028,7 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
     # 
     # Requires CASA module/function tb.
     # 
-    casalog.origin('prepare_clean_parameters')
+    set_casalog_origin('prepare_clean_parameters')
     
     # 
     # check field, makes sure there is only one field -- not exactly true, because for mosaics there are multiple fields but they are the same galaxy.
@@ -927,19 +1044,22 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
     # 
     tb.open(vis+os.sep+'SPECTRAL_WINDOW')
     spw_count = tb.nrows()
+    spw_ref_chan_col = tb.getcol('MEAS_FREQ_REF')
     spw_ref_freq_col = tb.getcol('REF_FREQUENCY')
     tb.close()
     # 
+    check_spw_ref_freq_consistency = True
     if spw_count > 1 and specmode != 'mfs':
-        check_spw_ref_freq_consistency = True
         for ispw in range(len(spw_ref_freq_col)):
             if spw_ref_freq_col[ispw] != spw_ref_freq_col[0]:
                 check_spw_ref_freq_consistency = False
                 break
         if check_spw_ref_freq_consistency == False:
-            raise Exception('Error! The input vis "%s" has multiple spws and they do not have the same REF_FREQUENCY! Please split/mstransform the target line channels into one spw before calling prepare_clean_parameters()!'%(vis))
+            raise Exception('Warning! The input vis "%s" has multiple spws and they do not have the same REF_FREQUENCY! We will recalculate ref_freq as the bandwidth center!'%(vis))
+            #'Please split/mstransform the target line channels into one spw before calling prepare_clean_parameters()!'
     # 
     ref_freq_Hz = spw_ref_freq_col[0]
+    ref_chan = spw_ref_chan_col[0]
     
     # 
     # if user has input a beamsize, then use it
@@ -992,7 +1112,7 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
             #
             #valid_data_desc_indicies = []
             #for i,data_desc_spw in enumerate(data_desc_spw_col):
-            #    if data_desc_spw in linespws:
+            #    if data_desc_spw in lineSpwIds:
             #        valid_data_desc_indicies.append(i)
             #
             #if 0 == len(valid_data_desc_indicies):
@@ -1153,6 +1273,9 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
     #    globals()[t] = clean_parameters[t]
     
     # 
+    restore_casalog_origin()
+    
+    # 
     # Return
     # 
     return clean_parameters
@@ -1164,7 +1287,7 @@ def run_tclean_with_clean_parameters(clean_parameters):
     # 
     # Requires CASA module/function default, inp, saveinputs, tclean.
     # 
-    casalog.origin('run_tclean_with_clean_parameters')
+    set_casalog_origin('run_tclean_with_clean_parameters')
     # 
     # Reset tclean parameters
     # 
@@ -1222,6 +1345,8 @@ def run_tclean_with_clean_parameters(clean_parameters):
             exportfits(imagename+'.mask', imagename+'.mask.fits')
     else:
         raise Exception('Error! tclean failed to produce the output image "%s"!'%(imagename+'.image'))
+    # 
+    restore_casalog_origin()
 
 
 
@@ -1705,7 +1830,7 @@ def dzliu_clean(dataset_ms,
                 skip_split = False, 
                 overwrite = False):
     # 
-    casalog.origin('dzliu_clean')
+    set_casalog_origin('dzliu_clean')
     
     # 
     # Check input paraameters
