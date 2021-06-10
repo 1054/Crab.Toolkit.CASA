@@ -13,48 +13,71 @@
 #     20200312: numpy too old in CASA 5. np.full not there yet. 
 #     20210218: added max_imsize, restoringbeam='common'
 #     20210315: added fix_zero_rest_frequency
+#     20210610: fixed CASA 6 import issue
 # 
 from __future__ import print_function
 import os, sys, re, json, copy, timeit, shutil
 import numpy as np
-from taskinit import casalog, tb #, ms, iatool
-#from taskinit import casac
-#tb = casac.table
-#from __casac__.table import table as tb
-#from recipes import makepb, pixelmask2cleanmask
-import casadef
-def version_tuple(version_str):
-    return tuple(map(int, (version_str.split("."))))
-def version_less_than(version_str, compared_version_str):
-    return version_tuple(version_str) < version_tuple(compared_version_str)
-def version_greater_equal(version_str, compared_version_str):
-    return version_tuple(version_str) >= version_tuple(compared_version_str)
-if version_less_than(casadef.casa_version, '6.0.0'):
-    #from __main__ import default, inp, saveinputs
-    ##import task_tclean; task_tclean.tclean # this is what tclean.py calls
-    ##import tclean
-    ##import tclean_cli
-    from tclean_cli import tclean_cli_
-    tclean = tclean_cli_()
-    from mstransform_cli import mstransform_cli_
-    mstransform = mstransform_cli_()
-    from exportfits_cli import exportfits_cli_
-    exportfits = exportfits_cli_()
-    from concat_cli import concat_cli_
-    concat = concat_cli_()
-    from split_cli import split_cli_
-    split = split_cli_()
-    from imstat_cli import imstat_cli_
-    imstat = imstat_cli_()
-    from impbcor_cli import impbcor_cli_
-    impbcor = impbcor_cli_()
-    from imsmooth_cli import imsmooth_cli_
-    imsmooth = imsmooth_cli_()
-else:
-    # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
-    from casatasks import tclean, mstransform, exportfits, concat, split, imstat, impbcor, imsmooth
-    #from casatasks import sdbaseline
-    #from casatools import ia
+try:
+    from astropy.io import fits
+except:
+    import pyfits as fits
+try:
+    #from taskinit import casalog, tb #, ms, iatool
+    #from taskinit import casac
+    #tb = casac.table
+    #from __casac__.table import table as tb
+    #from recipes import makepb, pixelmask2cleanmask
+    try:
+        import casadef
+        casa_version_str = casadef.casa_version
+    except:
+        from casatools import utils as casatools_utils
+        casa_version_str = casatools_utils.utils().version_string().replace('-','.')
+    def _version_tuple(version_str):
+        return tuple(map(int, (version_str.split("."))))
+    def _version_less_than(version_str, compared_version_str):
+        return _version_tuple(version_str) < _version_tuple(compared_version_str)
+    def _version_greater_equal(version_str, compared_version_str):
+        return _version_tuple(version_str) >= _version_tuple(compared_version_str)
+    if _version_less_than(casa_version_str, '6.0.0'):
+        from taskinit import casalog, tb #, ms, iatool
+        #from __main__ import default, inp, saveinputs
+        ##import task_tclean; task_tclean.tclean # this is what tclean.py calls
+        ##import tclean
+        ##import tclean_cli
+        from tclean_cli import tclean_cli_
+        tclean = tclean_cli_()
+        from mstransform_cli import mstransform_cli_
+        mstransform = mstransform_cli_()
+        from exportfits_cli import exportfits_cli_
+        exportfits = exportfits_cli_()
+        from concat_cli import concat_cli_
+        concat = concat_cli_()
+        from split_cli import split_cli_
+        split = split_cli_()
+        from imstat_cli import imstat_cli_
+        imstat = imstat_cli_()
+        from impbcor_cli import impbcor_cli_
+        impbcor = impbcor_cli_()
+        from imsmooth_cli import imsmooth_cli_
+        imsmooth = imsmooth_cli_()
+    else:
+        # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
+        # see CASA 6 usage here: https://casa.nrao.edu/casadocs/casa-5.6.0/introduction/casa6-installation-and-usage
+        # see CASA 6 APIs: https://casadocs.readthedocs.io/en/stable/api/tt/casatools.table.html
+        #from casatools import imager as imtool
+        from casatools import table as casatools_table
+        tb = casatools_table()
+        #from casatasks import listobs
+        from casatasks import casalog
+        from casatasks import tclean, mstransform, exportfits, concat, split, imstat, impbcor, imsmooth
+        casalog.post('CASA version >= 6', 'INFO')
+        #from casatasks import sdbaseline
+        #from casatools import ia
+except:
+    print('Error! Could not import taskinit and other CASA modules!')
+    pass
 
 
 

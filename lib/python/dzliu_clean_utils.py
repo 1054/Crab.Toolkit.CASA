@@ -26,6 +26,7 @@ Last updates
 ------------
 - 2020-12-23 copied functions from "dzliu_clean.py"
 - 2021-01-04 updated tclean functions
+- 2021-06-10 fixed CASA 6 import issue
 
 Example
 -------
@@ -47,19 +48,25 @@ try:
 except:
     import pyfits as fits
 try:
-    from taskinit import casalog, tb #, ms, iatool
+    #from taskinit import casalog, tb #, ms, iatool
     #from taskinit import casac
     #tb = casac.table
     #from __casac__.table import table as tb
     #from recipes import makepb, pixelmask2cleanmask
-    import casadef
+    try:
+        import casadef
+        casa_version_str = casadef.casa_version
+    except:
+        from casatools import utils as casatools_utils
+        casa_version_str = casatools_utils.utils().version_string().replace('-','.')
     def _version_tuple(version_str):
         return tuple(map(int, (version_str.split("."))))
     def _version_less_than(version_str, compared_version_str):
         return _version_tuple(version_str) < _version_tuple(compared_version_str)
     def _version_greater_equal(version_str, compared_version_str):
         return _version_tuple(version_str) >= _version_tuple(compared_version_str)
-    if _version_less_than(casadef.casa_version, '6.0.0'):
+    if _version_less_than(casa_version_str, '6.0.0'):
+        from taskinit import casalog, tb #, ms, iatool
         #from __main__ import default, inp, saveinputs
         ##import task_tclean; task_tclean.tclean # this is what tclean.py calls
         ##import tclean
@@ -82,7 +89,15 @@ try:
         imsmooth = imsmooth_cli_()
     else:
         # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
+        # see CASA 6 usage here: https://casa.nrao.edu/casadocs/casa-5.6.0/introduction/casa6-installation-and-usage
+        # see CASA 6 APIs: https://casadocs.readthedocs.io/en/stable/api/tt/casatools.table.html
+        #from casatools import imager as imtool
+        from casatools import table as casatools_table
+        tb = casatools_table()
+        #from casatasks import listobs
+        from casatasks import casalog
         from casatasks import tclean, mstransform, exportfits, concat, split, imstat, impbcor, imsmooth
+        casalog.post('CASA version >= 6', 'INFO')
         #from casatasks import sdbaseline
         #from casatools import ia
 except:
