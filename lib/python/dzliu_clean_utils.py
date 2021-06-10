@@ -282,7 +282,6 @@ def get_field_names(vis):
     """
     tb.open(vis+os.sep+'FIELD')
     field_names = tb.getcol('NAME')
-    field_phasecenters = [tb.getcell(column_name, i) for i in range(tb.nrows())] # rad,rad
     tb.close()
     #
     return field_names
