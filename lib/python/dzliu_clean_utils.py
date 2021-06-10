@@ -583,6 +583,12 @@ def get_field_IDs_in_mosaic(vis, cell=None, imsize=None, phasecenter=None, ref_f
         field_Dec = matched_field_phasecenters[1, i]
         dRA = np.abs(center_RA-field_RA)*np.cos(np.deg2rad(field_Dec))
         dDec = np.abs(center_Dec-field_Dec)
+        # 
+        if verbose:
+            _print2('Checking field ID %d RA Dec %s %s with half primary beam size %s versus the input mosaic RA Dec %s %s (offset %s %s) FoV %s %s phasecenter %s imsize %s cell %s'%(\
+                matched_field_indices[i], field_RA, field_Dec, pribeam/2., center_RA, center_Dec, dRA, dDec, 
+                imsize_RA_deg, imsize_Dec_deg, phasecenter, imsize, cell))
+        # 
         # we must make sure the whole field 1.5*pribeam (pblimit=0.2) is inside the imsize, otherwise tclean will be wrapped at the edge when there are data outside the FoV.
         if dRA < imsize_RA_deg/2.-pribeam*padding_by_primary_beam and \
            dDec < imsize_Dec_deg/2.-pribeam*padding_by_primary_beam:
