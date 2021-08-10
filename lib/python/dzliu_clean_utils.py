@@ -17,6 +17,7 @@ This code contains following functions (not a complete list):
 - get_field_phasecenters
 - get_mosaic_imsize_and_phasecenter
 - get_synbeam_and_imcell
+- set_common_field_name_and_reference_dir
 - cleanup_tclean_products
 - apply_pbcor_to_tclean_image
 - export_tclean_products_as_fits_files
@@ -43,6 +44,9 @@ from __future__ import print_function
 import os, sys, re, json, copy, shutil
 import numpy as np
 from collections import OrderedDict
+from collections import namedtuple
+VersionInfo = namedtuple('VersionInfo', ['major', 'minor', 'micro', 'patch']) # 'releaselevel', serial'
+str2versioninfo = lambda x: VersionInfo(*(np.pad(np.array(str(x).replace('-','.').split('.')).astype(int), (0,4), mode='constant', constant_values=0)[0:4]))
 try:
     from astropy.io import fits
 except:
@@ -55,10 +59,12 @@ try:
     #from recipes import makepb, pixelmask2cleanmask
     try:
         import casadef
-        casa_version_str = casadef.casa_version
+        casa_version_str = casadef.casa_version.replace('-','.')
+        casa_version_info = str2versioninfo(casa_version_str)
     except:
         from casatools import utils as casatools_utils
         casa_version_str = casatools_utils.utils().version_string().replace('-','.')
+        casa_version_info = str2versioninfo(casa_version_str)
     def _version_tuple(version_str):
         return tuple(map(int, (version_str.split("."))))
     def _version_less_than(version_str, compared_version_str):
@@ -94,9 +100,18 @@ try:
         #from casatools import imager as imtool
         from casatools import table as casatools_table
         tb = casatools_table()
-        #from casatasks import listobs
+        from casatools import image as casatools_image
+        iatool = casatools_image()
+        from casatools import imager as casatools_imager
+        imtool = casatools_imager()
+        #from casatools import logsink as casatools_logsink
+        #casalog = casatools_logsink() # this will create a new casalog. use the casalog in casatasks.
         from casatasks import casalog
+        #from casatasks import listobs
         from casatasks import tclean, mstransform, exportfits, concat, split, imstat, impbcor, imsmooth
+        #from casatasks import (concat, exportfits, feather, flagdata, imhead, immath, impbcor, importfits, 
+        #    imrebin, imregrid, imsmooth, imstat, imsubimage, imtrans, imval, makemask, mstransform, 
+        #    split, statwt, tclean, uvcontsub, visstat)
         casalog.post('CASA version >= 6', 'INFO')
         #from casatasks import sdbaseline
         #from casatools import ia
@@ -785,6 +800,10 @@ def get_mstransform_params_for_spectral_line(
         return_dict=True, 
         )
     # 
+    if spw_selection_str == '':
+        _print2('Error! No spw found containing the input line!')
+        return mstransform_params
+    # 
     output_chan_width_MHz = (chan_width_kms/2.99792458e5*line_freq_MHz)
     # 
     # check channel width to be the same
@@ -833,7 +852,129 @@ def get_mstransform_params_for_spectral_line(
 # 
 # 
 # 
+def parse_RA_Dec_str(RA_Dec_str):
+    """Convert RA Dec string to degrees. 
+    """
+    #<TODO># Not Tested!
+    pattern_1 = re.compile(r'^([0-9+-]+)h([0-9]+)m([0-9.]+)s[ \t]+([0-9+-]+)d([0-9]+)m([0-9.]+)s')
+    pattern_2 = re.compile(r'^([0-9+-]+):([0-9]+):([0-9.]+)[ \t]+([0-9+-]+):([0-9]+):([0-9.]+)')
+    pattern_3 = re.compile(r'^([0-9+-]+):([0-9]+):([0-9.]+)[ \t]+([0-9+-]+)\.([0-9]+)\.([0-9.]+)')
+    pattern_4 = re.compile(r'^([0-9.+-]+)deg[ \t]+([0-9.+-]+)deg')
+    pattern_5 = re.compile(r'^([0-9.+-]+)[ \t]+([0-9.+-]+)')
+    matched = False
+    RAh, RAm, RAs = np.nan, np.nan, np.nan
+    DEd, DEm, DEs = np.nan, np.nan, np.nan
+    RAdeg = np.nan
+    DEdeg = np.nan
+    if not matched:
+        match_1 = pattern_1.match(RA_Dec_str, re.IGNORECASE)
+        if match_1:
+            matched = True
+            RAh, RAm, RAs, DEd, DEm, DEs = [float(t) for t in match_1.groups()]
+    if not matched:
+        match_2 = pattern_2.match(RA_Dec_str, re.IGNORECASE)
+        if match_2:
+            matched = True
+            RAh, RAm, RAs, DEd, DEm, DEs = [float(t) for t in match_2.groups()]
+    if not matched:
+        match_3 = pattern_3.match(RA_Dec_str, re.IGNORECASE)
+        if match_3:
+            matched = True
+            RAh, RAm, RAs, DEd, DEm, DEs = [float(t) for t in match_3.groups()]
+    if not matched:
+        match_4 = pattern_4.match(RA_Dec_str, re.IGNORECASE)
+        if match_4:
+            matched = True
+            RAdeg, DEdeg = [float(t) for t in match_4.groups()]
+    if not matched:
+        match_5 = pattern_5.match(RA_Dec_str, re.IGNORECASE)
+        if match_5:
+            matched = True
+            RAdeg, DEdeg = [float(t) for t in match_5.groups()]
+    if matched:
+        if np.isnan(RAdeg):
+            RAdeg = RAh*15. + RAm/60. + RAs/3600.
+            DEdeg = DEd + DEm/60. + DEs/3600.
+    #<TODO># Not Tested!
+    return RAdeg, DEdeg
+
+
+
+# 
+# 
+# 
+def set_common_field_name_and_reference_dir(vis, source_name, source_RA, source_Dec, outputvis, overwrite=False):
+    """Set a common field name and reference direction for all fields in the input measurement set. 
+    """
+    if os.path.isdir(outputvis):
+        if not os.path.isfile(outputvis+os.sep+'table.dat'):
+            print('Warning! Found existing output data %r but it is incomplete. Deleting it.'%(outputvis))
+            shutil.rmtree(outputvis)
+    # 
+    if os.path.isdir(outputvis):
+        if os.path.isdir(outputvis+'.touch'):
+            print('Warning! Found existing output data %r but it seems still being touched by some process. Skipping it.'%(outputvis))
+            return
+    # 
+    if os.path.isdir(outputvis):
+        if overwrite:
+            shutil.rmtree(outputvis)
+        else:
+            print('Found existing output data %r and overwrite is False. Will not overwrite it.'%(outputvis))
+            return
+    # 
+    os.makedirs(outputvis+'.touch')
+    # 
+    shutil.copytree(vis, outputvis)
+    # 
+    tb.open(outputvis+os.sep+'FIELD', nomodify=False)
+    fplog = open(outputvis+'.modifying.field.table.txt', 'w')
+    fplog.write('row, old name, new name, old reference dir a0, old reference dir d0, new reference dir a0, new reference dir d0\n')
+    for i in range(tb.nrows()):
+        old_field_name = tb.getcell('NAME', i)
+        old_reference_dir = tb.getcell('REFERENCE_DIR', i)
+        new_field_name = source_name
+        new_reference_dir = [[np.deg2rad(source_RA)], [np.deg2rad(source_Dec)]]
+        fplog.write('%d, %r, %r, %s, %s, %s, %s\n'%(i, old_field_name, new_field_name, \
+            old_reference_dir[0][0], old_reference_dir[0][1], new_reference_dir[0][0], new_reference_dir[0][1]))
+        tb.putcell('NAME', i, new_field_name)
+        tb.putcell('REFERENCE_DIR', i, new_reference_dir)
+    fplog.close()
+    tb.flush()
+    tb.close()
+    # 
+    #tb.open(outputvis+os.sep+'SOURCE', nomodify=False)
+    #fplog = open(outputvis+'.modifying.source.table.txt', 'w')
+    #fplog.write('row, old name, new name, old direction a0, old direction d0, new direction a0, new direction d0\n')
+    #for i in [0]:
+    #    old_name = tb.getcell('NAME', i)
+    #    old_direction = tb.getcell('DIRECTION', i)
+    #    new_name = new_name
+    #    new_direction = [np.deg2rad(source_RA), np.deg2rad(source_Dec)]
+    #    fplog.write('%d, %r, %r, %s, %s, %s, %s\n'%(i, old_name, new_name, \
+    #        old_direction[0], old_direction[1], new_direction[0], new_direction[1]))
+    #    tb.putcell('NAME', i, new_name)
+    #    tb.putcell('DIRECTION', i, new_direction)
+    #    tb.putcell('CALIBRATION_GROUP', i, 0)
+    #    tb.putcell('CODE', i, '')
+    #fplog.close()
+    #tb.flush()
+    #tb.close()
+    # 
+    os.rmdir(outputvis+'.touch')
+    # 
+    print('Output to "%s"'%(outputvis))
+    # 
+    return
+
+
+
+# 
+# 
+# 
 def cleanup_tclean_products(imagename, suffix_list=None, cleanup_mask=True, cleanup_fits=True, exit_on_error=True):
+    """Delete all tclean products given a base image name.
+    """
     if imagename.endswith('.image'):
         imagename = re.sub(r'\.image$', r'', imagename)
     if suffix_list is None:

@@ -20,6 +20,7 @@ from scipy.interpolate import griddata
 # User-defined parameters
 Region_files = glob.glob('ds9_regions_of_mosaic_pointings_in_*_boxes_unpadded.reg')
 DataSet_names = [re.sub(r'ds9_regions_of_mosaic_pointings_in_(.*)_boxes_unpadded.reg', r'\1', os.path.basename(t)) for t in Region_files] # [os.path.basename(os.path.dirname(os.path.dirname((t)))) for t in DataSet_dirs]
+Output_dir = 'Level_4_Data_Images_Divide_Mosaic'
 
 
 # Check input
@@ -375,9 +376,13 @@ for Region_file, DataSet_name in list(zip(Region_files, DataSet_names)):
     # put back OBSGEO
     #output_header = push_in_obsgeo(output_header, geox, geoy, geoz)
     
+    # check output dir
+    if not os.path.isdir(Output_dir):
+        os.makedirs(Output_dir)
+    
     # write to fits
     output_hdu = fits.PrimaryHDU(data = output_image, header = output_header)
-    output_file = 'Level_4_Data_Images_Divide_Mosaic/%s_Mosaicked.fits'%(DataSet_name)
+    output_file = '%s/%s_Mosaicked.fits'%(Output_dir, DataSet_name)
     if os.path.isfile(output_file):
         shutil.move(output_file, output_file+'.backup')
     output_hdu.writeto(output_file)
@@ -385,7 +390,7 @@ for Region_file, DataSet_name in list(zip(Region_files, DataSet_names)):
     
     # write weight to fits
     output_hdu = fits.PrimaryHDU(data = output_weight, header = output_header)
-    output_file = 'Level_4_Data_Images_Divide_Mosaic/%s_Mosaicked.weight.fits'%(DataSet_name)
+    output_file = '%s/%s_Mosaicked.weight.fits'%(Output_dir, DataSet_name)
     if os.path.isfile(output_file):
         shutil.move(output_file, output_file+'.backup')
     output_hdu.writeto(output_file)
@@ -393,7 +398,7 @@ for Region_file, DataSet_name in list(zip(Region_files, DataSet_names)):
     
     # write weight to fits
     output_hdu = fits.PrimaryHDU(data = output_coverage, header = output_header)
-    output_file = 'Level_4_Data_Images_Divide_Mosaic/%s_Mosaicked.coverage.fits'%(DataSet_name)
+    output_file = '%s/%s_Mosaicked.coverage.fits'%(Output_dir, DataSet_name)
     if os.path.isfile(output_file):
         shutil.move(output_file, output_file+'.backup')
     output_hdu.writeto(output_file)
