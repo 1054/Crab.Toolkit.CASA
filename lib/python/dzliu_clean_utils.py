@@ -17,6 +17,8 @@ This code contains following functions (not a complete list):
 - get_field_phasecenters
 - get_mosaic_imsize_and_phasecenter
 - get_synbeam_and_imcell
+- get_spw_for_spectral_line
+- get_mstransform_params_for_spectral_line
 - set_common_field_name_and_reference_dir
 - cleanup_tclean_products
 - apply_pbcor_to_tclean_image
@@ -751,7 +753,8 @@ def get_mstransform_params_for_spectral_line(
         line_width_kms=None, 
         chan_width_kms=None, 
         force_integer_chan_width=True, 
-        exclude_continuum_spw=True,
+        exclude_continuum_spw=True, 
+        check_same_chan_width=True, 
         verbose=True, 
     ):
     """Get a mstransform parameter dict for the given spectral line.
@@ -807,19 +810,31 @@ def get_mstransform_params_for_spectral_line(
     output_chan_width_MHz = (chan_width_kms/2.99792458e5*line_freq_MHz)
     # 
     # check channel width to be the same
-    chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
+    list_chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
     if verbose:
-        _print2('chan_width_MHz: %s, spw_selection_dict: %s'%(chan_width_MHz, spw_selection_dict))
-    chan_width_MHz = np.abs(chan_width_MHz)
-    min_chan_width_MHz = chan_width_MHz[0]
+        _print2('list_chan_width_MHz: %s, spw_selection_dict: %s'%(list_chan_width_MHz, spw_selection_dict))
+    list_chan_width_MHz = np.abs(list_chan_width_MHz)
+    min_chan_width_MHz = None
     for i,ispw in enumerate(list(spw_selection_dict.keys())):
-        if chan_width_MHz[i] > output_chan_width_MHz:
+        if list_chan_width_MHz[i] > output_chan_width_MHz:
             if verbose:
-                _print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, chan_width_MHz[i], output_chan_width_MHz))
+                _print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, list_chan_width_MHz[i], output_chan_width_MHz))
             del spw_selection_dict[ispw]
         else:
-            if min_chan_width_MHz > chan_width_MHz[i]:
-                min_chan_width_MHz = chan_width_MHz[i]
+            if min_chan_width_MHz is None:
+                min_chan_width_MHz = list_chan_width_MHz[i]
+            elif min_chan_width_MHz > list_chan_width_MHz[i]:
+                min_chan_width_MHz = list_chan_width_MHz[i]
+    if min_chan_width_MHz is None:
+        _print2('Error! No spw found with channel width matching to or better than the output channel width %s MHz!'%(output_chan_width_MHz))
+        return mstransform_params
+    # 
+    if check_same_chan_width:
+        for i,ispw in enumerate(list(spw_selection_dict.keys())):
+            if not np.isclose(list_chan_width_MHz[i], min_chan_width_MHz, atol=0.0, rtol=0.01):
+                if verbose:
+                    _print2('Discarding spw %d because its channel width %s MHz is different and broader than the best channel width %s MHz'%(ispw, list_chan_width_MHz[i], min_chan_width_MHz))
+                del spw_selection_dict[ispw]
     # 
     if force_integer_chan_width:
         output_chan_width_MHz = np.round(output_chan_width_MHz/min_chan_width_MHz)*min_chan_width_MHz
