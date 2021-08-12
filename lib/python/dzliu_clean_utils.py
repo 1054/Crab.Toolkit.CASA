@@ -201,7 +201,9 @@ def get_ref_frequency_Hz(vis, spw_list=None):
     tb.close()
     #
     if spw_list is not None:
-        ref_frequency = spw_ref_frequency[spw_list]
+        if np.isscalar(spw_list):
+            spw_list = [spw_list]
+        ref_frequency = np.mean([spw_ref_frequency[int(t)] for t in spw_list])
     else:
         ref_frequency = spw_ref_frequency[0] # if no spw is specified, use the first spw REF_FREQUNCY
     # 
@@ -227,7 +229,9 @@ def get_chan_width_MHz(vis, spw_list=None):
     tb.close()
     #
     if spw_list is not None:
-        chan_width_array_MHz = np.array([spw_chan_width[t] for t in spw_list]) / 1e6
+        if np.isscalar(spw_list):
+            spw_list = [spw_list]
+        chan_width_array_MHz = np.array([spw_chan_width[int(t)] for t in spw_list]) / 1e6
         return chan_width_array_MHz
     else:
         chan_width_MHz = spw_chan_width[0] / 1e6 # if no spw is specified, use the first spw CHAN_WIDTH
@@ -726,7 +730,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
             if chright > nchan-1:
                 chright = nchan-1
             # 
-            spw_selection_dict[i] = '%d~%d'%(chleft, chright)
+            spw_selection_dict[str(i)] = '%d~%d'%(chleft, chright)
             if spw_selection_str != '':
                 spw_selection_str += ','
             spw_selection_str += '%d:%d~%d'%(i, chleft, chright)
