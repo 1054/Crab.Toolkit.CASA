@@ -817,28 +817,31 @@ def get_mstransform_params_for_spectral_line(
     list_chan_width_MHz = get_chan_width_MHz(vis, spw_list=list(spw_selection_dict.keys()))
     if verbose:
         _print2('list_chan_width_MHz: %s, spw_selection_dict: %s'%(list_chan_width_MHz, spw_selection_dict))
-    list_chan_width_MHz = np.abs(list_chan_width_MHz)
+    list_chan_width_MHz = np.abs(np.array(list_chan_width_MHz)).tolist()
+    list_chan_width_MHz = dict(zip(list(spw_selection_dict.keys()), list_chan_width_MHz)) # convert to dict
     min_chan_width_MHz = None
     for i,ispw in enumerate(list(spw_selection_dict.keys())):
-        if list_chan_width_MHz[i] > output_chan_width_MHz:
+        if list_chan_width_MHz[ispw] > output_chan_width_MHz:
             if verbose:
-                _print2('Discarding spw %s because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, list_chan_width_MHz[i], output_chan_width_MHz))
+                _print2('Discarding spw %s because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, list_chan_width_MHz[ispw], output_chan_width_MHz))
             del spw_selection_dict[ispw]
+            del list_chan_width_MHz[ispw]
         else:
             if min_chan_width_MHz is None:
-                min_chan_width_MHz = list_chan_width_MHz[i]
-            elif min_chan_width_MHz > list_chan_width_MHz[i]:
-                min_chan_width_MHz = list_chan_width_MHz[i]
+                min_chan_width_MHz = list_chan_width_MHz[ispw]
+            elif min_chan_width_MHz > list_chan_width_MHz[ispw]:
+                min_chan_width_MHz = list_chan_width_MHz[ispw]
     if min_chan_width_MHz is None:
         _print2('Error! No spw found with channel width matching to or better than the output channel width %s MHz!'%(output_chan_width_MHz))
         return mstransform_params
     # 
     if check_same_chan_width:
         for i,ispw in enumerate(list(spw_selection_dict.keys())):
-            if not np.isclose(list_chan_width_MHz[i], min_chan_width_MHz, atol=0.0, rtol=0.01):
+            if not np.isclose(list_chan_width_MHz[ispw], min_chan_width_MHz, atol=0.0, rtol=0.01):
                 if verbose:
-                    _print2('Discarding spw %s because its channel width %s MHz is different and broader than the best channel width %s MHz'%(ispw, list_chan_width_MHz[i], min_chan_width_MHz))
+                    _print2('Discarding spw %s because its channel width %s MHz is different and broader than the best channel width %s MHz'%(ispw, list_chan_width_MHz[ispw], min_chan_width_MHz))
                 del spw_selection_dict[ispw]
+                del list_chan_width_MHz[ispw]
     # 
     if force_integer_chan_width:
         output_chan_width_MHz = np.round(output_chan_width_MHz/min_chan_width_MHz)*min_chan_width_MHz
