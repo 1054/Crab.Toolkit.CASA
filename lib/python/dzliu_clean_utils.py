@@ -822,7 +822,7 @@ def get_mstransform_params_for_spectral_line(
     for i,ispw in enumerate(list(spw_selection_dict.keys())):
         if list_chan_width_MHz[i] > output_chan_width_MHz:
             if verbose:
-                _print2('Discarding spw %d because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, list_chan_width_MHz[i], output_chan_width_MHz))
+                _print2('Discarding spw %s because its channel width %s MHz is broader than the output channel width %s MHz'%(ispw, list_chan_width_MHz[i], output_chan_width_MHz))
             del spw_selection_dict[ispw]
         else:
             if min_chan_width_MHz is None:
@@ -837,7 +837,7 @@ def get_mstransform_params_for_spectral_line(
         for i,ispw in enumerate(list(spw_selection_dict.keys())):
             if not np.isclose(list_chan_width_MHz[i], min_chan_width_MHz, atol=0.0, rtol=0.01):
                 if verbose:
-                    _print2('Discarding spw %d because its channel width %s MHz is different and broader than the best channel width %s MHz'%(ispw, list_chan_width_MHz[i], min_chan_width_MHz))
+                    _print2('Discarding spw %s because its channel width %s MHz is different and broader than the best channel width %s MHz'%(ispw, list_chan_width_MHz[i], min_chan_width_MHz))
                 del spw_selection_dict[ispw]
     # 
     if force_integer_chan_width:
