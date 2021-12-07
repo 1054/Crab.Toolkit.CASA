@@ -228,7 +228,7 @@ def get_spw_frequency_range_GHz(vis, spw_list=None):
     tb.open(vis+os.sep+'SPECTRAL_WINDOW')
     spw_id = np.arange(0,tb.nrows()) # 
     spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i) for i in spw_id]) # a list of list, Hz
-    spw_chan_freq_range = np.array([t[0], t[-1] for t in spw_chan_freq])
+    spw_chan_freq_range = np.array([[t[0], t[-1]] for t in spw_chan_freq])
     tb.close()
     #
     if spw_list is not None:
