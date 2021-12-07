@@ -13,6 +13,8 @@ This code contains following functions (not a complete list):
 - get_datacolumn
 - get_antenn_diameter
 - get_ref_frequency
+- get_spw_frequency_range
+- get_chan_width
 - get_optimized_imsize
 - get_field_phasecenters
 - get_mosaic_imsize_and_phasecenter
@@ -193,7 +195,7 @@ def get_ref_frequency_Hz(vis, spw_list=None):
     #
     # Requires CASA module/function tb.
     #
-    casalog.origin('get_central_channel_frequency')
+    casalog.origin('get_ref_frequency_Hz')
     #
     tb.open(vis+os.sep+'SPECTRAL_WINDOW')
     #spw_chan_freq = tb.getcol('CHAN_FREQ') # a list of list, Hz
@@ -212,6 +214,37 @@ def get_ref_frequency_Hz(vis, spw_list=None):
 
 
 #
+# def get_spw_frequency_range
+#
+def get_spw_frequency_range(vis, spw_list=None):
+    return get_spw_frequency_range_GHz(vis, spw_list=spw_list)
+# 
+def get_spw_frequency_range_GHz(vis, spw_list=None):
+    #
+    # Requires CASA module/function tb.
+    #
+    casalog.origin('get_spw_frequency_range_GHz')
+    #
+    tb.open(vis+os.sep+'SPECTRAL_WINDOW')
+    spw_id = np.arange(0,tb.nrows()) # 
+    spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i) for i in spw_id]) # a list of list, Hz
+    spw_chan_freq_range = np.array([t[0], t[-1] for t in spw_chan_freq])
+    tb.close()
+    #
+    if spw_list is not None:
+        if np.isscalar(spw_list):
+            spw_list = [spw_list]
+        spw_freq_range_array_GHz = np.array([spw_chan_freq_range[int(t)] for t in spw_list]) / 1e9
+        return spw_freq_range_array_GHz
+    else:
+        spw_freq_range_array_GHz = spw_chan_freq_range / 1e9 # return a list
+        return spw_freq_range_array_GHz
+    # 
+    #return spw_freq_range_array_GHz
+
+
+
+#
 # def get_chan_width_MHz
 #
 def get_chan_width(vis, spw_list=None):
@@ -221,7 +254,7 @@ def get_chan_width_MHz(vis, spw_list=None):
     #
     # Requires CASA module/function tb.
     #
-    casalog.origin('get_central_channel_frequency')
+    casalog.origin('get_chan_width_MHz')
     #
     tb.open(vis+os.sep+'SPECTRAL_WINDOW')
     spw_id = np.arange(0,tb.nrows()) # 
