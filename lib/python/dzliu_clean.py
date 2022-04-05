@@ -590,7 +590,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
                 ref_freq_Hz = spw_chan_freq_list[0]
                 width_freq_Hz = spw_chan_width_list[0]
                 start_freq_Hz = all_line_frequency[k] - 0.5*(all_line_velocity_width[k]/2.99792458e5)*spw_ref_freq #<TODO># lowest freq (as document says) or left-most freq (depending on positive/negative chanwidth)?
-                start = (start_freq_Hz - ref_freq_Hz) / width_freq_Hz + ref_chan - 1 # 0-based, see tclean-task.html
+                start = (start_freq_Hz - ref_freq_Hz) / width_freq_Hz + spw_ref_chan - 1 # 0-based, see tclean-task.html
                 start = int(np.round(start))
                 nchan = (all_line_velocity_width[k]/2.99792458e5)*spw_ref_freq / width_freq_Hz # the output number of channels, covering the full line_velocity_width
                 nchan = int(np.round(nchan))
