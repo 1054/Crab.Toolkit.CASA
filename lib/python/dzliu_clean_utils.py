@@ -779,13 +779,13 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
                 elif chleft-1 == 0:
                     rev_chleft = [str(0)]
                 else:
-                    rev_chleft = [str(0), str(chleft-1)]
+                    rev_chleft = [str(0), '%d'%(chleft-1)]
                 if chright+1 > nchan:
                     rev_chright = []
                 elif chright+1 == nchan-1:
-                    rev_chright = [str(nchan-1)]
+                    rev_chright = ['%d'%(nchan-1)]
                 else:
-                    rev_chright = [str(chright+1), str(nchan-1)]
+                    rev_chright = ['%d'%(chright+1), '%d'%(nchan-1)]
                 spw_selection_dict[str(i)] = ';'.join([t for t in ['~'.join(rev_chleft), '~'.join(rev_chright)] if t != ''])
                 if spw_selection_str != '':
                     spw_selection_str += ','
