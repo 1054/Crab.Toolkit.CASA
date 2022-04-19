@@ -707,9 +707,11 @@ def get_synbeam_and_imcell(vis, ref_freq_Hz = None, oversampling = 5.0):
 #
 # def get spw for spectral line
 #
-def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width_kms=None, exclude_continuum_spw=True, 
-        return_dict=False, verbose=True, 
+def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width_kms=None, 
+        exclude_continuum_spw=True, 
         reverse_selection=False, 
+        return_dict=False, 
+        verbose=True, 
     ):
     #
     casalog.origin('get_spw_for_spectral_line')
@@ -788,6 +790,11 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
                 if spw_selection_str != '':
                     spw_selection_str += ','
                 spw_selection_str += '%d:%s'%(i, spw_selection_dict[str(i)])
+        elif reverse_selection:
+            spw_selection_dict[str(i)] = '0~%d'%(nchan-1)
+            if spw_selection_str != '':
+                spw_selection_str += ','
+            spw_selection_str += '%d'%(i, spw_selection_dict[str(i)])
     # 
     if verbose:
         _print2('spw_selection_str = %r'%(spw_selection_str))
