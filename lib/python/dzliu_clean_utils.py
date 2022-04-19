@@ -790,11 +790,12 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
                 if spw_selection_str != '':
                     spw_selection_str += ','
                 spw_selection_str += '%d:%s'%(i, spw_selection_dict[str(i)])
-        elif reverse_selection:
-            spw_selection_dict[str(i)] = '0~%d'%(nchan-1)
-            if spw_selection_str != '':
-                spw_selection_str += ','
-            spw_selection_str += '%d'%(i, spw_selection_dict[str(i)])
+        else:
+            if reverse_selection:
+                spw_selection_dict[str(i)] = '0~%d'%(nchan-1)
+                if spw_selection_str != '':
+                    spw_selection_str += ','
+                spw_selection_str += '%d'%(i)
     # 
     if verbose:
         _print2('spw_selection_str = %r'%(spw_selection_str))
