@@ -707,7 +707,10 @@ def get_synbeam_and_imcell(vis, ref_freq_Hz = None, oversampling = 5.0):
 #
 # def get spw for spectral line
 #
-def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width_kms=None, exclude_continuum_spw=True, return_dict=False, verbose=True):
+def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width_kms=None, exclude_continuum_spw=True, 
+        return_dict=False, verbose=True, 
+        reverse_selection=False, 
+    ):
     #
     casalog.origin('get_spw_for_spectral_line')
     # 
@@ -747,7 +750,7 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
         is_continuum_spw = ((nchan <= 4) or chstep>=31.25e6)
         if verbose:
             _print2('spw %s, ch0 %s, chlast %s, chstep %s, nchan %s, is_continuum_spw %s'%(i, ch0, chlast, chstep, nchan, is_continuum_spw))
-        if exclude_continuum_spw and is_continuum_spw:
+        if exclude_continuum_spw and is_continuum_spw and (not reverse_selection):
             continue
         if (line_freq_range_Hz[1] > min(ch0, chlast)) and (line_freq_range_Hz[0] < max(ch0, chlast)) and nchan > 1:
             if chstep > 0:
@@ -763,10 +766,28 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
             if chright > nchan-1:
                 chright = nchan-1
             # 
-            spw_selection_dict[str(i)] = '%d~%d'%(chleft, chright)
-            if spw_selection_str != '':
-                spw_selection_str += ','
-            spw_selection_str += '%d:%d~%d'%(i, chleft, chright)
+            if (not reverse_selection):
+                spw_selection_dict[str(i)] = '%d~%d'%(chleft, chright)
+                if spw_selection_str != '':
+                    spw_selection_str += ','
+                spw_selection_str += '%d:%d~%d'%(i, chleft, chright)
+            else:
+                if chleft-1 < 0:
+                    rev_chleft = []
+                elif chleft-1 == 0:
+                    rev_chleft = [str(0)]
+                else:
+                    rev_chleft = [str(0), str(chleft-1)]
+                if chright+1 > nchan:
+                    rev_chright = []
+                elif chright+1 == nchan-1:
+                    rev_chright = [str(nchan-1)]
+                else:
+                    rev_chright = [str(chright+1), str(nchan-1)]
+                spw_selection_dict[str(i)] = ';'.join([t for t in ['~'.join(rev_chleft), '~'.join(rev_chright)] if t != ''])
+                if spw_selection_str != '':
+                    spw_selection_str += ','
+                spw_selection_str += '%d:%s'%(i, spw_selection_dict[str(i)])
     # 
     if verbose:
         _print2('spw_selection_str = %r'%(spw_selection_str))
