@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Easy to run CASA tclean either from command line or in the CASA environment.
+"""Easy to run CASA tclean.
 
 Notes
 -----
@@ -1956,28 +1956,41 @@ def test_dzliu_clean():
 #   main   #
 ############
 
-dzliu_main_func_name = 'dzliu_clean' # make sure this is the right main function in this script file
+# dzliu_main_func_name = 'dzliu_clean' # make sure this is the right main function in this script file
 
-if __name__ == '__main__':
-    if 'casa' in globals() or 'casalog' in globals():
-        # We are already in CASA
-        dzliu_main_func = globals()[dzliu_main_func_name]
-        dzliu_main_func(globals())
-    else:
-        # We are in command line, need to launch CASA
-        import distutils.spawn
-        if distutils.spawn.find_executable("casa") is None:
-            raise Exception('Error! CASA is not found by distutils.spawn.find_executable!')
-        # Prepare to launch CASA
-        print('Launching CASA and running this script:')
-        command = 'export PYTHONPATH={}:${{PYTHONPATH}}; cd "{}"; '.format(
-            script_path, os.getcwd())
-        if sys.version_info.major == 2:
-            command += 'casa --nogui --log2term -c "execfile(\\\"{0}\\\")"'.format(os.path.abspath(__file__))
-        elif sys.version_info.major >= 3:
-            command += 'casa --nogui --log2term -c "exec(compile(open(\\\"{0}\\\").read(), \\\"{0}\\\", \\\"exec\\\"), globals(), locals())"'.format(os.path.abspath(__file__))
-        print(command)
-        os.system(command)
+# if __name__ == '__main__':
+#     if 'casa' in globals() or 'casalog' in globals():
+#         # We are already in CASA
+#         dzliu_main_func = globals()[dzliu_main_func_name]
+#         dzliu_main_func(globals())
+#     else:
+#         # We are in command line, need to launch CASA
+#         import distutils.spawn
+#         if distutils.spawn.find_executable("casa") is None:
+#             raise Exception('Error! CASA is not found by distutils.spawn.find_executable!')
+#         # Read user input args
+#         if len(sys.argv) <= 2:
+#             print('Usage:')
+#             print('    ./dzliu_clean.py INPUT_DATASET.ms make_line_cube=False make_continuum=True')
+#             sys.exit(255)
+#         input_dataset_ms = sys.argv[1]
+#         for i in range(2, len(sys.argv)):
+#             if sys.argv[i].find('=') >= 0:
+#                 varname, varvalue = sys.argv[i].split('=')
+#                 if varvalue == 'False':
+#                     varvalue = False
+#                 elif varvalue == 'True':
+#                     varvalue = True
+#         # Prepare to launch CASA
+#         print('Launching CASA and running this script:')
+#         command = 'export PYTHONPATH={}:${{PYTHONPATH}}; cd "{}"; '.format(
+#             script_path, os.getcwd())
+#         if sys.version_info.major == 2:
+#             command += 'casa --nogui --log2term -c "execfile(\\\"{0}\\\")"'.format(os.path.abspath(__file__))
+#         elif sys.version_info.major >= 3:
+#             command += 'casa --nogui --log2term -c "exec(compile(open(\\\"{0}\\\").read(), \\\"{0}\\\", \\\"exec\\\"), globals(), locals())"'.format(os.path.abspath(__file__))
+#         print(command)
+#         os.system(command)
 
 
 
