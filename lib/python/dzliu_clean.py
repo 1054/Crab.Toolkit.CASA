@@ -1,19 +1,35 @@
 #!/usr/bin/env python
-# 
-# This needs to be run in CASA
-# 
-# CASA modules/functions used:
-#     tb, casalog, mstransform, inp, saveinputs, exportfits, tclean
-# 
-# Example:
-#     sys.path.append('/Users/dzliu/Cloud/Github/Crab.Toolkit.CASA/lib/python')
-#     import dzliu_clean; reload(dzliu_clean); dzliu_clean.dzliu_clean(dataset_ms)
-# 
-# Notes:
-#     20200312: numpy too old in CASA 5. np.full not there yet. 
-#     20210218: added max_imsize, restoringbeam='common'
-#     20210315: added fix_zero_rest_frequency
-#     20210610: fixed CASA 6 import issue
+# -*- coding: utf-8 -*-
+"""Easy to run CASA tclean either from command line or in the CASA environment.
+
+Notes
+-----
+CASA modules/functions used:
+    tb, casalog, mstransform, inp, saveinputs, exportfits, tclean
+
+Functions
+---------
+This code contains following functions (not a complete list):
+
+- dzliu_clean
+
+Last updates
+------------
+- 2020-03-12: numpy too old in CASA 5. np.full not there yet. 
+- 2021-02-18: added max_imsize, restoringbeam='common'
+- 2021-03-15: added fix_zero_rest_frequency
+- 2021-06-10: fixed CASA 6 import issue
+- 2022-06-15: updating to use "dzliu_clean_utils.py"
+
+Example
+-------
+Example commands to run this code::
+
+    import os, sys, glob
+    sys.path.append(os.path.expanduser('~/Cloud/Github/Crab.Toolkit.CASA/lib/python'))
+    import dzliu_clean; reload(dzliu_clean); dzliu_clean.dzliu_clean(dataset_ms)
+
+"""
 # 
 from __future__ import print_function
 import os, sys, re, json, copy, timeit, shutil
@@ -82,6 +98,22 @@ except:
 
 
 # 
+# add script path to sys.path
+# 
+script_path = os.path.dirname(os.path.abspath(__file__))
+if script_path is not in sys.path:
+    sys.path.append(script_path)
+
+
+
+# 
+# import dzliu_clean_utils
+# 
+from dzliu_clean_utils import (get_optimized_imsize, get_datacolumn, get_antenn_diameter, get_field_names, get_field_phasecenters)
+
+
+
+# 
 # global casalog_origin2
 # 
 global casalog_origin2
@@ -108,6 +140,22 @@ def restore_casalog_origin():
 def print2(message):
     print(message)
     casalog.post(message, 'INFO')
+
+
+
+# 
+# def NpEncoder, needed for json.dump
+# 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
 
 
 
@@ -224,159 +272,6 @@ def encodeSpwChannelSelection(input_spw_chan_selection):
 
 
 
-
-# 
-# def get_optimized_imsize
-# 
-def get_optimized_imsize(imsize, return_decomposed_factors = False):
-    # 
-    # No CASA module/function used here.
-    # 
-    #set_casalog_origin('get_optimized_imsize')
-    # 
-    # try to make imsize be even and only factorizable by 2,3,5,7
-    imsize = int(imsize)
-    decomposed_factors = []
-    # 
-    # if imsize is 1, then return it
-    if imsize == 1:
-        if return_decomposed_factors == True:
-            return 1, [1]
-        else:
-            return 1
-    # 
-    # make it even
-    if imsize % 2 != 0:
-        imsize += 1
-    # 
-    # factorize by 2,3,5,7
-    for k in [2, 3, 5, 7]:
-        while imsize % k == 0:
-            imsize = int(imsize / k)
-            decomposed_factors.append(k)
-    # 
-    # make the non-factorizable number factorizable by 2, 3, 5, or 7
-    while imsize != 1 and int( np.prod( [ (imsize % k) for k in [2, 3, 5, 7] ] ) ) != 0:
-        # as long as it is factorizable by any of the [2, 3, 5, 7], the mod ("%") will be zero, so the product will also be zero
-        #print('imsize', imsize, '(imsize % k)', [ (imsize % k) for k in [2, 3, 5, 7] ], 
-        #                               np.prod( [ (imsize % k) for k in [2, 3, 5, 7] ] ) )
-        imsize += 1
-        #print('imsize', imsize, '(imsize % k)', [ (imsize % k) for k in [2, 3, 5, 7] ], 
-        #                               np.prod( [ (imsize % k) for k in [2, 3, 5, 7] ] ) )
-        
-    # 
-    imsize2, decomposed_factors2 = get_optimized_imsize(imsize, return_decomposed_factors = True)
-    # 
-    imsize = imsize2
-    # 
-    decomposed_factors.extend(decomposed_factors2)
-    # 
-    if return_decomposed_factors == True:
-        return np.prod(decomposed_factors), decomposed_factors
-    else:
-        return np.prod(decomposed_factors)
-
-
-
-# 
-# def get antenna diameter
-# 
-def get_antenn_diameter(vis):
-    # 
-    # Requires CASA module/function tb.
-    # 
-    set_casalog_origin('get_antenn_diameter')
-    # 
-    tb.open(vis+os.sep+'ANTENNA')
-    ant_names = tb.getcol('NAME')
-    ant_diams = tb.getcol('DISH_DIAMETER') # meter
-    tb.close()
-    # 
-    minantdiam = np.min(ant_diams) # meter
-    print2('ant_diams = %s'%(ant_diams))
-    print2('minantdiam = %s [m]'%(minantdiam))
-    # 
-    restore_casalog_origin()
-    # 
-    return minantdiam
-
-
-
-# 
-# def get field phasecenters
-#
-def get_field_phasecenters(vis, galaxy_name = '', column_name = 'DELAY_DIR'):
-    """
-    Get Measurement Set phase centers ('DELAY_DIR'). 
-    
-    Return 3 lists: matched_field_name, matched_field_indices, and matched_field_phasecenters. 
-    
-    The 3rd return is a list of two lists: a RA_deg and a Dec_deg list.
-    
-    If galaxy_name is '', then all field phase centers will be returned.
-    """
-    #
-    # Requires CASA module/function tb.
-    #
-    set_casalog_origin('get_field_phasecenters')
-    #
-    tb.open(vis+os.sep+'FIELD')
-    field_names = tb.getcol('NAME')
-    field_phasecenters = [tb.getcell(column_name, i) for i in range(tb.nrows())] # rad,rad
-    tb.close()
-    #
-    if galaxy_name != '':
-        galaxy_name_cleaned = re.sub(r'[^a-zA-Z0-9]', r'', galaxy_name).lower() #<TODO># What if someone use "_" as a field name?
-    else:
-        galaxy_name_cleaned = '' # if the user has input an empty string, then we will get all fields in this vis data.
-    #
-    matched_field_name = ''
-    matched_field_indices = []
-    matched_field_phasecenters = []
-    for i, field_name in enumerate(field_names):
-        # find galaxy_name in field_names:
-        field_name_cleaned = re.sub(r'[^a-zA-Z0-9]', r'', field_name).lower()
-        field_RA_rad, field_Dec_rad = field_phasecenters[i]
-        field_RA_rad = field_RA_rad[0]
-        field_Dec_rad = field_Dec_rad[0]
-        if field_RA_rad < 0:
-            field_RA_rad += 2.0 * np.pi
-        field_RA_deg = field_RA_rad / np.pi * 180.0
-        field_Dec_deg = field_Dec_rad / np.pi * 180.0
-        if galaxy_name_cleaned == '' or field_name_cleaned.startswith(galaxy_name_cleaned):
-            matched_field_name = field_name
-            matched_field_indices.append(i)
-            matched_field_phasecenters.append([field_RA_deg, field_Dec_deg])
-    #
-    if '' == matched_field_name:
-        raise ValueError('Error! Target source %s was not found in the "FIELD" table of the input vis "%s"!'%(galaxy_name, vis))
-    #
-    matched_field_indices = np.array(matched_field_indices)
-    matched_field_phasecenters = np.array(matched_field_phasecenters).T # two columns, nrows
-    # 
-    restore_casalog_origin()
-    # 
-    return matched_field_name, matched_field_indices, matched_field_phasecenters
-
-
-
-
-def get_datacolumn(vis):
-    # 
-    # Requires CASA module/function tb.
-    # 
-    set_casalog_origin('get_datacolumn')
-    # 
-    tb.open(vis)
-    if 'CORRECTED_DATA' in tb.colnames():
-        datacolumn = 'CORRECTED'
-    else:
-        datacolumn = 'DATA'
-    tb.close()
-    # 
-    restore_casalog_origin()
-    # 
-    return datacolumn
 
 
 
@@ -688,7 +583,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
             print2('split_parameters = %s'%(split_parameters))
             
             with open(os.path.dirname(output_ms)+os.sep+'saved_split_continuum_visibilities_task_split_inputs_for_continuum_spw%d_chan%d_%d.json'%(i, chan0, chan1), 'w') as fp:
-                json.dump(split_parameters, fp, indent = 4)
+                json.dump(split_parameters, fp, indent = 4, cls = NpEncoder)
             
             split(**split_parameters)
             
@@ -705,7 +600,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
     print2('concat_parameters = %s'%(concat_parameters))
     
     with open(os.path.dirname(output_ms)+os.sep+'saved_split_continuum_visibilities_task_concat_inputs_for_continuum.json', 'w') as fp:
-        json.dump(concat_parameters, fp, indent = 4)
+        json.dump(concat_parameters, fp, indent = 4, cls = NpEncoder)
     
     concat(**concat_parameters)
     
@@ -1006,7 +901,7 @@ def split_line_visibilities(dataset_ms, output_ms, galaxy_name, line_name, line_
     #mstransform()
     
     with open(os.path.dirname(output_ms)+os.sep+'saved_mstransform_inputs.json', 'w') as fp:
-        json.dump(mstransform_parameters, fp, indent = 4)
+        json.dump(mstransform_parameters, fp, indent = 4, cls = NpEncoder)
     
     mstransform(**mstransform_parameters)
     
@@ -1346,7 +1241,7 @@ def run_tclean_with_clean_parameters(clean_parameters):
     # Print and save inputs (New method)
     # 
     with open(os.path.dirname(imagename)+os.sep+'saved_tclean_inputs.json', 'w') as fp:
-        json.dump(clean_parameters, fp, indent = 4)
+        json.dump(clean_parameters, fp, indent = 4, cls = NpEncoder)
     # 
     print2('clean_parameters = %s'%(clean_parameters))
     # 
