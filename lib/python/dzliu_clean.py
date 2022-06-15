@@ -25,9 +25,11 @@ Example
 -------
 Example commands to run this code::
 
-    import os, sys, glob
+    import os, sys
     sys.path.append(os.path.expanduser('~/Cloud/Github/Crab.Toolkit.CASA/lib/python'))
-    import dzliu_clean; reload(dzliu_clean); dzliu_clean.dzliu_clean(dataset_ms)
+    import dzliu_clean
+    #reload(dzliu_clean) #importlib.reload(dzliu_clean)
+    dzliu_clean.dzliu_clean('my_dataset.ms', make_cube=True, make_continuum=True)
 
 """
 # 
@@ -101,7 +103,7 @@ except:
 # add script path to sys.path
 # 
 script_path = os.path.dirname(os.path.abspath(__file__))
-if script_path is not in sys.path:
+if script_path not in sys.path:
     sys.path.append(script_path)
 
 
@@ -1934,18 +1936,25 @@ def test_dzliu_clean():
 dzliu_main_func_name = 'dzliu_clean' # make sure this is the right main function in this script file
 
 if __name__ == '__main__':
-    if 'casa' in globals():
-        # We are already in CASA and are called via execfile
+    if 'casa' in globals() or 'casalog' in globals():
+        # We are already in CASA
         dzliu_main_func = globals()[dzliu_main_func_name]
         dzliu_main_func(globals())
     else:
-        print('Please run this in CASA via:')
-        print('(Python2)')
-        print('    execfile(\'%s\')'%(os.path.basename(__file__)))
-        print('(Python3)')
-        print('    from %s import %s'%(re.sub(r'\.py$', r'', os.path.basename(__file__)), dzliu_main_func_name) )
-        print('    %s(globals())'%(dzliu_main_func_name) )
-        raise Exception('Please see message above.')
+        # We are in command line, need to launch CASA
+        import distutils.spawn
+        if distutils.spawn.find_executable("casa") is None:
+            raise Exception('Error! CASA is not found by distutils.spawn.find_executable!')
+        # Prepare to launch CASA
+        print('Launching CASA and running this script:')
+        command = 'export PYTHONPATH={}:${{PYTHONPATH}}; cd "{}"; '.format(
+            script_path, os.getcwd())
+        if sys.version_info.major == 2:
+            command += 'casa --nogui --log2term -c "execfile(\\\"{0}\\\")"'.format(os.path.abspath(__file__))
+        elif sys.version_info.major >= 3:
+            command += 'casa --nogui --log2term -c "exec(compile(open(\\\"{0}\\\").read(), \\\"{0}\\\", \\\"exec\\\"), globals(), locals())"'.format(os.path.abspath(__file__))
+        print(command)
+        os.system(command)
 
 
 
