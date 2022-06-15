@@ -29,7 +29,7 @@ Example commands to run this code::
     sys.path.append(os.path.expanduser('~/Cloud/Github/Crab.Toolkit.CASA/lib/python'))
     import dzliu_clean
     #reload(dzliu_clean) #importlib.reload(dzliu_clean)
-    dzliu_clean.dzliu_clean('my_dataset.ms', make_cube=True, make_continuum=True)
+    dzliu_clean.dzliu_clean('my_dataset.ms', make_line_cube=True, make_continuum=True)
 
 """
 # 
@@ -408,7 +408,7 @@ def split_continuum_visibilities(dataset_ms, output_ms, galaxy_name, galaxy_reds
     if galaxy_redshift is None and line_velocity is None:
         # if no galaxy_redshift and line_velocity, we can not find line-free channels!
         do_find_line_free_channels = False
-        print2('Warning! No galaxy redshift or velocity information was given! We will assume no line within the bandwidth!')
+        print2('Warning! No galaxy redshift or velocity information was given! We will assume no line channel to exclude within the bandwidth!')
     elif line_name is not None and (line_velocity is None or line_velocity_width is None):
         # if has line_name but no line velocity or line velocity width, raise error
         raise ValueError('Error! Please input both line_name and line_velocity and line_velocity_width for the line_name "%s"!'%(line_name))
@@ -1720,6 +1720,25 @@ def process_clean_mask(input_mask_cube, template_image_cube, output_mask_cube):
 
 
 
+# 
+# fix error "Error in selectData() : No MeasFrame specified for conversion of Frequency"
+# 
+def fix_zero_meas_freq_ref(vis):
+    # 
+    # Requires CASA module/function tb.
+    # 
+    set_casalog_origin('fix_zero_meas_freq_ref')
+    # 
+    tb.open(vis+os.sep+'SPECTRAL_WINDOW', nomodify=False)
+    val = tb.getcell('MEAS_FREQ_REF', 0)
+    if val == 0:
+        tb.putcell('MEAS_FREQ_REF', 0, 1) # 1 for LSRK, see "http://www.eso.org/~jagonzal/telcal/antenna_position/online-antenna-position/analysis_scripts/plotbandpass3.py"
+    tb.close()
+    # 
+    restore_casalog_origin()
+
+
+
 
 
 
@@ -1814,6 +1833,10 @@ def dzliu_clean(dataset_ms,
     # 
     # 20210315 fix zero rest frequency
     fix_zero_rest_frequency(dataset_ms)
+    
+    # 
+    # 20220615 fix zero meas freq ref
+    fix_zero_meas_freq_ref(dataset_ms)
     
     # 
     # Make line cube
