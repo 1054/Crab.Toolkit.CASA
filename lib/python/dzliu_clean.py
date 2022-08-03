@@ -333,6 +333,7 @@ def find_lab_line_name_and_freq(line_name = ''):
     lab_line_dict['HI21cm'] = {'rest-freq': 1.420405751}
     lab_line_dict['[CI]370um'] = {'rest-freq': 809.34197}
     lab_line_dict['[CI]609um'] = {'rest-freq': 492.16065}
+    lab_line_dict['[CII]158um'] = {'rest-freq': 1900.5369}
     lab_line_dict['CO(1-0)'] = {'rest-freq': 115.2712018}
     lab_line_dict['CO(2-1)'] = {'rest-freq': 230.5380000}
     lab_line_dict['CO(3-2)'] = {'rest-freq': 345.7959899}
