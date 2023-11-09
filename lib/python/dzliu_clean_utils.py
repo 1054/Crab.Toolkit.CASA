@@ -26,12 +26,14 @@ This code contains following functions (not a complete list):
 - apply_pbcor_to_tclean_image
 - export_tclean_products_as_fits_files
 - imsmooth_tclean_image
+- load_params_from_dot_last_file
 
 Last updates
 ------------
 - 2020-12-23 copied functions from "dzliu_clean.py"
 - 2021-01-04 updated tclean functions
 - 2021-06-10 fixed CASA 6 import issue
+- 2023-11-09 added load_params_from_dot_last_file
 
 Example
 -------
@@ -140,6 +142,44 @@ def _print2(message):
 def _print_params(dict_params, prefix_str):
     print_str = prefix_str+'('+', '.join("{!s}={!r}".format(k, dict_params[k]) for k in dict_params.keys())+')'
     _print2(print_str)
+
+
+
+# 
+# json load byteified -- https://stackoverflow.com/questions/956867/how-to-get-string-objects-instead-of-unicode-from-json
+# 
+def _iteritems(dict_object):
+    for key in dict_object:
+        yield key, dict_object[key]
+
+def _byteify(data, ignore_dicts = False):
+    # if this is a unicode string, return its string representation
+    if sys.version_info.major == 2 and isinstance(data, unicode):
+        return data.encode('utf-8')
+    # if this is a list of values, return list of byteified values
+    if isinstance(data, list):
+        return [ _byteify(item, ignore_dicts=True) for item in data ]
+    # if this is a dictionary, return dictionary of byteified keys and values
+    # but only if we haven't already byteified it
+    if isinstance(data, dict) and not ignore_dicts:
+        return {
+            _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
+            for key, value in _iteritems(data)
+        }
+    # if it's anything else, return it in its original form
+    return data
+
+def json_load_byteified(file_handle):
+    return _byteify(
+        json.load(file_handle, object_hook=_byteify),
+        ignore_dicts=True
+    )
+
+def json_loads_byteified(json_text):
+    return _byteify(
+        json.loads(json_text, object_hook=_byteify),
+        ignore_dicts=True
+    )
 
 
 
@@ -1213,6 +1253,24 @@ def imsmooth_tclean_image(infile, major, minor=None, pa=None, kernel='gaussian',
             if exit_on_error:
                 raise Exception('Error! Failed to run CASA exportfits and output %s'%(outfile+'.fits'))
     # 
+
+
+def load_params_from_dot_last_file(dot_last_file):
+    dict_params = {}
+    with open(dot_last_file, 'r') as fp:
+        for line in fp:
+            if line.startswith('#'): 
+                continue
+            line_str = line.strip()
+            if line_str == '':
+                continue
+            line_match = re.match(r'^(.+) *# *(.+) *$', line_str)
+            if line_match:
+                line_str = line_match.group(1)
+            line_match = re.match(r'^([^ ]+) *= *(.+)$', line_str)
+            if line_match:
+                dict_params[line_match.group(1)] = eval(line_match.group(2))
+    return dict_params
 
 
 
