@@ -1270,6 +1270,8 @@ def load_params_from_dot_last_file(dot_last_file):
             line_match = re.match(r'^([^ ]+) *= *(.+)$', line_str)
             if line_match:
                 dict_params[line_match.group(1)] = eval(line_match.group(2))
+    if 'taskname' in dict_params:
+        del dict_params['taskname']
     return dict_params
 
 
