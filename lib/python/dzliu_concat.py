@@ -16,19 +16,29 @@
 from __future__ import print_function
 import os, sys, re, json, copy, timeit, shutil
 import numpy as np
-from taskinit import casalog, tb #, ms, iatool
+#from taskinit import casalog, tb #, ms, iatool
 #from taskinit import casac
 #tb = casac.table
 #from __casac__.table import table as tb
 #from recipes import makepb, pixelmask2cleanmask
-import casadef
+#import casadef
+try:
+    import casadef
+    casa_version_str = casadef.casa_version
+except:
+    from casatools import utils as casatools_utils
+    casa_version_str = casatools_utils.utils().version_string().replace('-','.')
 def version_tuple(version_str):
     return tuple(map(int, (version_str.split("."))))
 def version_less_than(version_str, compared_version_str):
     return version_tuple(version_str) < version_tuple(compared_version_str)
 def version_greater_equal(version_str, compared_version_str):
     return version_tuple(version_str) >= version_tuple(compared_version_str)
-if version_less_than(casadef.casa_version, '6.0.0'):
+if version_less_than(casa_version_str, '6.0.0'):
+    # 
+    from taskinit import casalog
+    from taskinit import tb
+    # 
     #from __main__ import default, inp, saveinputs
     ##import task_tclean; task_tclean.tclean # this is what tclean.py calls
     ##import tclean
@@ -47,9 +57,13 @@ if version_less_than(casadef.casa_version, '6.0.0'):
     imstat = imstat_cli_()
 else:
     # see CASA 6 updates here: https://alma-intweb.mtk.nao.ac.jp/~eaarc/UM2018/presentation/Nakazato.pdf
+    from casatasks import casalog as casalog2
     from casatasks import tclean, mstransform, exportfits, concat, split, imstat
     #from casatasks import sdbaseline
     #from casatools import ia
+    from casatools import table as tb2
+    casalog = casalog2
+    tb = tb2()
 
 
 

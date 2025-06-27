@@ -288,7 +288,10 @@ def fix_zero_rest_frequency(vis):
     tb.open(vis+os.sep+'SOURCE')
     if 'REST_FREQUENCY' in tb.colnames():
         for i in range(tb.nrows()):
-            rest_frequency_cell_data = tb.getcell('REST_FREQUENCY', i)
+            try:
+                rest_frequency_cell_data = tb.getcell('REST_FREQUENCY', i)
+            except:
+                rest_frequency_cell_data = None # 20241218
             if rest_frequency_cell_data is not None:
                 #print2('Checking REST_FREQUENCY column: %s'%(re.sub(r'\s+', r' ', str(rest_frequency_column_data))))
                 if np.any(np.isclose(np.array([rest_frequency_cell_data]), 0)):
@@ -1157,7 +1160,8 @@ def prepare_clean_parameters(vis, imagename, imcell = None, imsize = None, niter
     #clean_parameters['weighting'] = 'briggs'
     #clean_parameters['robust'] = '2.0' # robust = -2.0 maps to A=1,B=0 or uniform weighting. robust = +2.0 maps to natural weighting. (robust=0.5 is equivalent to robust=0.0 in AIPS IMAGR.)
     clean_parameters['nterms'] = 1 # nterms must be ==1 when deconvolver='hogbom' is chosen
-    clean_parameters['chanchunks'] = -1 # This feature is experimental and may have restrictions on how chanchunks is to be chosen. For now, please pick chanchunks so that nchan/chanchunks is an integer. 
+    if _version_less_than(casa_version_str, '6.0.0'):
+        clean_parameters['chanchunks'] = -1 # This feature is experimental and may have restrictions on how chanchunks is to be chosen. For now, please pick chanchunks so that nchan/chanchunks is an integer. 
     clean_parameters['interactive'] = False
     #clean_parameters['savemodel'] = 'virtual' # 'none', 'virtual', 'modelcolumn'. 'virtual' for simple gridding, 'modelcolumn' for gridder='awproject'.
     #niter = 30000
