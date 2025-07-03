@@ -16,6 +16,7 @@ This code contains following functions (not a complete list):
 - flag_line_data
 - estimate_tclean_params
 - selfcal_continuum_data
+- timebin_uvdata
 
 Last updates
 ------------
@@ -72,7 +73,10 @@ for iscope, scope in enumerate(inspect.stack()):
 if check_casa(caller_globals):
     for key in caller_globals:
         if key not in globals(): 
-            if key.find('casa')>=0 or key in ['tb', 'ia', 'flagdata', 'split', 'mstransform', 'tclean', 'imstat', 'gaincal', 'plotms', 'applycal']:
+            if key.find('casa')>=0 or key in [
+                'tb', 'ia', 'me', 'qa', 
+                'flagdata', 'split', 'mstransform', 'tclean', 'imstat', 'gaincal', 'plotms', 'applycal'
+            ]:
                 globals()[key] = caller_globals[key]
 
 
@@ -387,9 +391,14 @@ def flag_line_data(
         outputvis, 
         field, 
         spw, 
-        verbose=False, 
-        overwrite=False,
+        collapse = False, # collapse to make a continuum data set (keeping individual spws)
+        contspw = '', # continuum spw, if collapse is True
+        width = 3840, 
+        verbose = False, 
+        overwrite = False, 
     ):
+    if verbose:
+        print('flag line data with field {!r}, spw {!r}'.format(field, spw))
     if os.path.exists(outputvis): 
         if overwrite:
             print('Caution! Overwriting existing {!r}'.format(outputvis))
@@ -402,10 +411,32 @@ def flag_line_data(
     if os.path.exists(outputvis+'.tmp'):
         shutil.rmtree(outputvis+'.tmp')
     shutil.copytree(vis, outputvis+'.tmp')
-    if verbose:
-        print('flagdata with field {!r}, spw {!r}'.format(field, spw))
-    flagdata(vis=outputvis+'.tmp', mode='manual', field=field, spw=spw, flagbackup=False)
-    shutil.move(outputvis+'.tmp', outputvis)
+    datacolumn = 'data'
+    if 'CORRECTED_DATA' in aU.dataColumns(outputvis+'.tmp'):
+        datacolumn = 'corrected'
+    # 
+    if spw == '':
+        # nothing to flag
+        print('spw is empty, nothing to flag.')
+    else:
+        flagdata(vis=outputvis+'.tmp', mode='manual', field=field, spw=spw, datacolumn=datacolumn, flagbackup=False)
+    # 
+    if collapse:
+        if verbose:
+            print('flag_line_data')
+            print('mstransform with width {} to make a continuum data set'.format(width))
+        #mstransform(vis=outputvis+'.tmp', outputvis=outputvis+'.tmpB', width=width, datacolumn=datacolumn, reindex=False)
+        #--> mstransform width is not chanbin!
+        mstransform(vis=outputvis+'.tmp', outputvis=outputvis+'.tmpB', 
+                    chanaverage=True, chanbin=width, 
+                    datacolumn=datacolumn, keepflags=False, reindex=False)
+        #split(vis=outputvis+'.tmp', outputvis=outputvis+'.tmpB', spw=contspw, width=width, datacolumn=datacolumn)
+        #--> split cannot handle channel edge flags well! if some edge channels have flag=1, then the output collapsed uvw flag is also 1!
+        #--> bug!! -- not bug, my fault. Now checking if spw=='', do not flagdata.
+        shutil.rmtree(outputvis+'.tmp')
+        shutil.move(outputvis+'.tmpB', outputvis)
+    else:
+        shutil.move(outputvis+'.tmp', outputvis)
 
 
 
@@ -421,6 +452,7 @@ def estimate_tclean_params(
         maxBaselinePercentile = 95, 
         pblevel = 0.2, 
         npix = 5, 
+        maximsize = None, 
     ):
     # 
     tclean_params = {}
@@ -440,6 +472,12 @@ def estimate_tclean_params(
         fovpixsize = int(np.ceil(fov/cellsize))
         imsize = int(aU.getOptimumSize(fovpixsize))
         imsize = [imsize, imsize]
+    if maximsize is not None:
+        maximsize = int(maximsize)
+        if imsize[0] > maximsize:
+            imsize[0] = maximsize
+        if imsize[1] > maximsize:
+            imsize[1] = maximsize
     tclean_params['cell'] = cell
     tclean_params['imsize'] = imsize
     tclean_params['specmode'] = 'mfs'
@@ -459,15 +497,31 @@ def selfcal_continuum_data(
         phasecenter = '', 
         intent = 'OBSERVE_TARGET#ON_SOURCE', 
         spw = '', 
+        maximsize = None, 
+        calmode = 'p', 
+        solint = '120s', 
         gaintable = [], 
-        verbose = False, 
+        verbose = True, 
         overwrite = False, 
+        showgui = True, 
         cleanup = True, 
     ):
     # 
     # check input field and phasecenter
     if field == '' and phasecenter == '':
         raise Exception('Error! Please provide either field or phasecenter when calling selfcal_continuum_data!')
+    # 
+    # prepare result dict
+    outputbasename = outputvis # re.sub(r'\.(ms|ms.split|ms.split.cal)$', r'', outputvis)
+    caltable = outputbasename + '.pcal'
+    result_dict = {
+        'outputvis': outputvis, 
+        'caltable': caltable, 
+        'image_before_selfcal': outputbasename+'.clean.before.selfcal.image',
+        'image_after_selfcal': outputbasename+'.clean.before.selfcal.image',
+        'model_for_selfcal': outputbasename+'.clean.before.selfcal.model',
+        'pb_image': outputbasename+'.clean.after.selfcal.pb',
+    }
     # 
     # check existing outputvis
     if os.path.exists(outputvis): 
@@ -478,7 +532,7 @@ def selfcal_continuum_data(
             shutil.move(outputvis, outputvis+'.backup')
         else:
             print('Found existing {!r} and overwrite is False. Skipping it.'.format(outputvis))
-            return
+            return result_dict
     #if os.path.exists(outputvis+'.tmp'):
     #    shutil.rmtree(outputvis+'.tmp')
     os.system('rm -rf {}'.format(outputvis+'.tmp*'))
@@ -487,7 +541,6 @@ def selfcal_continuum_data(
     shutil.copytree(vis, outputvis+'.tmp')
     original_vis = vis
     vis = outputvis+'.tmp'
-    outputbasename = re.sub(r'\.(ms|ms.split|ms.split.cal)$', r'', outputvis)
     # 
     # find fields containing the phasecenter
     if phasecenter != '' and field == '':
@@ -499,14 +552,20 @@ def selfcal_continuum_data(
     # 
     # make continuum dataset
     spw = aU.getScienceSpws(vis, intent=intent, returnString=True)
-    mstransform_params = dict(field=field, intent=intent, spw=spw, width=3840, timebin='30s', datacolumn='data', reindex=False)
+    mstransform_params = dict(field=field, intent=intent, spw=spw, 
+                              chanaverage=True, chanbin=3840, # width=3840, 
+                              timeaverage=True, timebin='30s', # must set timeaverage=True
+                              datacolumn='data', keepflags=False, reindex=False)
     mstransform(vis, outputvis+'.tmp.cont', **mstransform_params)
+    #-- why FLAG are all zeros?
     vis = outputvis+'.tmp.cont'
     # 
     # make initial clean
     if verbose:
         print('Estimating tclean params:')
-    tclean_params = estimate_tclean_params(vis, intent=intent) # , field=field, spw=spw
+    tclean_params = estimate_tclean_params(vis, intent=intent, maximsize=maximsize) # , field=field, spw=spw
+    if phasecenter != '':
+        tclean_params['phasecenter'] = phasecenter
     if verbose:
         print(pprint.pformat(tclean_params, indent=4))
     dirty_image = outputvis+'.tmp.dirty'
@@ -541,18 +600,18 @@ def selfcal_continuum_data(
            calcpsf=False, calcres=False, restoration=False, **tclean_params)
     # 
     # gaincal
-    caltable = outputbasename + '.pcal'
+    #caltable = outputbasename + '.pcal'
     if gaintable is None or gaintable == '':
         gaintable = []
     elif isinstance(gaintable, str):
         gaintable = [gaintable]
-    gaincal(vis=vis, caltable=caltable, gaintable=gaintable, calmode='p', solint='120s')
+    gaincal(vis=vis, caltable=caltable, gaintable=gaintable, calmode=calmode, solint=solint)
     # 
     # plotcal
     plotms(caltable, xaxis='time', yaxis='phase', plotrange=[0,0,-180,180], iteraxis='spw', gridrows=2, gridcols=2, 
-           plotfile=caltable+'.plot.phase.vs.time.iter.spw.png', overwrite=True, highres=True)
+           plotfile=caltable+'.plot.phase.vs.time.iter.spw.png', overwrite=True, highres=True, showgui=showgui)
     plotms(caltable, xaxis='time', yaxis='phase', plotrange=[0,0,-180,180], iteraxis='antenna', gridrows=3, gridcols=3, 
-           plotfile=caltable+'.plot.phase.vs.time.iter.antenna.png', overwrite=True, highres=True)
+           plotfile=caltable+'.plot.phase.vs.time.iter.antenna.png', overwrite=True, highres=True, showgui=showgui)
     # 
     # applycal
     if verbose:
@@ -563,10 +622,10 @@ def selfcal_continuum_data(
     reclean_image = outputvis+'.tmp.reclean'
     if verbose:
         print('Remaking clean image:')
-        print('tclean({})'.format(params2str(dict(vis=vis, imagename=reclean_image, niter=100, datacolumn='corrected', savemodel='none', 
-                                                  pbcor=True, **tclean_params))))
-    tclean(vis=vis, imagename=reclean_image, niter=100, datacolumn='corrected', savemodel='none', 
-           pbcor=True, **tclean_params)
+        print('tclean({})'.format(params2str(dict(vis=vis, imagename=reclean_image, niter=100, datacolumn='corrected', 
+                                                  savemodel='none', pbcor=True, **tclean_params))))
+    tclean(vis=vis, imagename=reclean_image, niter=100, datacolumn='corrected', 
+           savemodel='none', pbcor=True, **tclean_params)
     # 
     # applycal to outputvis
     if verbose:
@@ -582,8 +641,65 @@ def selfcal_continuum_data(
     # 
     # cleanup
     if cleanup:
+        print('Cleaning up {}'.format(outputvis+'.tmp*'))
         os.system('rm -rf {}'.format(outputvis+'.tmp*'))
+    # 
+    # return_dict
+    result_dict = {
+        'outputvis': outputvis, 
+        'caltable': caltable, 
+        'image_before_selfcal': outputbasename+'.clean.before.selfcal.image',
+        'image_after_selfcal': outputbasename+'.clean.before.selfcal.image',
+        'model_for_selfcal': outputbasename+'.clean.before.selfcal.model',
+        'pb_image': outputbasename+'.clean.after.selfcal.pb',
+    }
+    return result_dict
 
+
+
+# 
+# timebin a uv data
+# 
+def timebin_uvdata(
+        ms_file, 
+        timebin='30s',
+    ):
+    old_size = get_dir_size(ms_file)
+    os.system('touch "{}"'.format(ms_file+'.touch'))
+    # get data column
+    tb.open(ms_file)
+    colnames = tb.colnames()
+    tb.close()
+    if 'CORRECTED_DATA' in colnames:
+        datacolumn = 'corrected'
+    else:
+        datacolumn = 'data'
+
+    # split with timebin
+    split(vis=ms_file, outputvis=ms_file+'.timebinned', timebin=timebin, datacolumn=datacolumn, keepflags=False)
+    if not os.path.exists(ms_file+'.original'):
+        os.system('mv "{}" "{}"'.format(ms_file, ms_file+'.original'))
+    else:
+        raise Exception('Error! File exists: {}'.format(ms_file+'.original'))
+    if not os.path.exists(ms_file):
+        os.system('mv "{}" "{}"'.format(ms_file+'.timebinned', ms_file))
+    else:
+        raise Exception('Error! File exists: {}'.format(ms_file))
+    if not os.path.exists(ms_file+'.timebin.log'):
+        os.system('mv "{}" "{}"'.format(ms_file+'.touch', ms_file+'.timebin.log'))
+        new_size = get_dir_size(ms_file)
+        with open(ms_file+'.timebin.log', 'a') as fp:
+            fp.write('timebin: 30s\n')
+            fp.write('old_size: {:6g} GB\n'.format(float(old_size)/1024/1024/1024))
+            fp.write('new_size: {:6g} GB\n'.format(float(new_size)/1024/1024/1024))
+    else:
+        raise Exception('Error! File exists: {}'.format(ms_file+'.timebin.log'))
+    
+    if os.path.exists(ms_file+'.touch'):
+        print('Failed to split the ms data {}? Please remove the touch file and re-run the script.'.format(ms_file))
+    else:
+        print('Successfully time-binned the ms data {}'.format(ms_file))
+        os.system('rm -rf "{}"'.format(ms_file+'.original'))
 
 
 
