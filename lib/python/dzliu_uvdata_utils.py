@@ -34,7 +34,7 @@ Example commands to run this code (in CASA environment)::
 
 """
 
-import os, sys, re, json, copy, time, datetime, shutil
+import os, sys, re, json, copy, glob, time, datetime, shutil
 import numpy as np
 import analysisUtils as aU
 import inspect
@@ -61,14 +61,42 @@ def check_casa(f_globals = None):
 # 
 # Find caller scope
 # 
+caller_globals = {}
 for iscope, scope in enumerate(inspect.stack()):
-    print('inspect.stack()', iscope, scope.filename)
-    if scope.filename.find('importlib')>=0 or scope.filename.find('<')>=0:
-        continue
-    if iscope == 0:
-        continue
-    caller_globals = scope.frame.f_globals
-    break
+    if hasattr(scope, 'filename'):
+        # casa 6.
+        scope_filename = scope.filename
+        scope_frame = scope.frame
+    else:
+        # casa 4.6.0
+        scope_filename = scope[3]
+        scope_frame = scope[0]
+    #print('inspect.stack()', iscope, scope_filename)
+    if check_casa(scope_frame.f_globals):
+        caller_globals = scope_frame.f_globals
+        break
+
+if len(caller_globals) == 0:
+    raise Exception('Error! Could not find CASA in inspect.stack()!')
+
+# for iscope, scope in enumerate(inspect.stack()):
+#     if hasattr(scope, 'filename'):
+#         # casa 6.
+#         scope_filename = scope.filename
+#         scope_frame = scope.frame
+#     else:
+#         # casa 4.6.0
+#         scope_filename = scope[3]
+#         scope_frame = scope[0]
+#     print('inspect.stack()', iscope, scope_filename)
+#     if scope_filename.find('importlib')>=0 or scope_filename.find('<')>=0 or scope_filename in ['runcode', 'runsource', 'push', 'interact']:
+#         continue
+#     if iscope == 0:
+#         continue
+#     caller_globals = scope_frame.f_globals
+#     print('caller_globals', caller_globals.keys())
+#     break
+
 #print('caller_globals', caller_globals.keys())
 if check_casa(caller_globals):
     for key in caller_globals:
@@ -77,6 +105,7 @@ if check_casa(caller_globals):
                 'tb', 'ia', 'me', 'qa', 
                 'flagdata', 'split', 'mstransform', 'tclean', 'imstat', 'gaincal', 'plotms', 'applycal'
             ]:
+                #print('caller_globals[{!r}]'.format(key))
                 globals()[key] = caller_globals[key]
 
 
@@ -272,11 +301,154 @@ def indexarray2selectingstr(index_array):
 # Known (sub)mm strong lines
 # 
 KNOWN_LINE_DICT = {
+    # Band 3
+    'sio54': 217.10498e9,
     'co21': 230.53800e9, 
     '13co21': 220.39868e9, 
     'c18o21': 219.56035e9, 
     'h30alpha': 231.900928e9, 
+    # Band 8
+    'co43': 461.04077e9, 
     'ci10': 492.16068e9, 
+    # 
+    # 'co65': 691.47308,
+    # 'co54': 576.26793,
+    # 'co43': 461.04077,
+    # 'co32': 345.79599,
+    # 'co21': 230.53800,
+    # 'co10': 115.27120,
+    # '13co65': 661.06728,
+    # '13co54': 550.92629,
+    # '13co43': 440.76517,
+    # '13co32': 330.58797,
+    # '13co21': 220.39868,
+    # '13co10': 110.20135,
+    # 'c18o65': 658.55328,
+    # 'c18o54': 548.83101,
+    # 'c18o43': 439.08877,
+    # 'c18o32': 329.33055,
+    # 'c18o21': 219.56035,
+    # 'c18o10': 109.78217,
+    # 'hcn10': 88.63185,  # J=1-0, F=2-1
+    # 'hcn21': 177.26111,  # J=2-1, F=2-1
+    # 'hcn32': 265.88618,
+    # 'hcn43': 354.50548,
+    # 'hcn54': 443.11616,
+    # 'hcn65': 531.71639,
+    # 'hcn76': 620.30410,
+    # 'h13cn10': 86.33992140,
+    # 'h13cn21': 172.67785120,
+    # 'h13cn32': 259.01179760,
+    # 'h13cn43': 345.33976930,
+    # 'h13cn54': 431.65977480,
+    # 'h13cn65': 517.96982100,
+    # 'h13cn76': 604.26791400,
+    # 'cs10': 48.99095,
+    # 'cs21': 97.98095,
+    # 'cs32': 146.96903,
+    # 'cs43': 195.95421,
+    # 'cs54': 244.93556,
+    # 'cs65': 293.91209,
+    # 'cs76': 342.88285,
+    # 'cs87': 391.84689,
+    # 'cs98': 440.80323,
+    # 'cs109': 489.75092,
+    # 'cs1110': 538.68900,
+    # 'cs1211': 587.61649,
+    # 'cs1312': 636.53246,
+    # 'cs1413': 685.43592,
+    # '13cs10': 46.24756320,
+    # '13cs21': 92.49430800,
+    # '13cs32': 138.73933500,
+    # '13cs43': 184.98177200,
+    # '13cs54': 231.22068520,
+    # '13cs65': 277.45540500,
+    # '13cs76': 323.68497300,
+    # '13cs87': 369.90855050,
+    # '13cs98': 416.12527510,
+    # '13cs109': 462.33429010,
+    # '13cs1110': 508.53473910,
+    # '13cs1211': 554.72576570,
+    # '13cs1312': 600.90648000,
+    # '13cs1413': 647.07615000,
+    # 'hcop10': 89.18852,
+    # 'hcop21': 178.37506,
+    # 'hcop32': 267.55763,
+    # 'hcop43': 356.73422,
+    # 'hcop54': 445.90287,
+    # 'hcop65': 535.06158,
+    # 'hcop76': 624.20836,
+    # 'h13cop10': 86.75428840,
+    # 'h13cop21': 173.50670030,
+    # 'h13cop32': 260.25533900,
+    # 'h13cop43': 346.99834400,
+    # 'h13cop54': 433.73383270,
+    # 'h13cop65': 520.45988430,
+    # 'h13cop76': 607.17464560,
+    # 'hnc10': 90.66357,
+    # 'hnc21': 181.32476,
+    # 'hnc32': 271.98114,
+    # 'hnc43': 362.63030,
+    # 'hnc54': 453.26992,
+    # 'hnc65': 543.89755,
+    # 'hnc76': 634.51083,
+    # 'hnco43': 87.925237,  # 4( 0, 4)- 3( 0, 3)
+    # 'hnco54': 109.905749,  # 5( 0, 5)- 4( 0, 4)
+    # 'hn13c10': 87.09085000,
+    # 'hn13c21': 174.17940800,
+    # 'hn13c32': 261.26331010,
+    # 'hn13c43': 348.34026950,
+    # 'hn13c54': 435.40796260,
+    # 'hn13c65': 522.46407300,
+    # 'hn13c76': 609.50628400,
+    # 'ci10': 492.16065,  # 3P1-3P0
+    # 'ci21': 809.34197,  # 3P2-3P1
+    # 'sio10': 43.42376,
+    # 'sio21': 86.84696,
+    # 'sio32': 130.26861,
+    # 'sio43': 173.68831,
+    # 'sio54': 217.10498,
+    # 'sio65': 260.51802,
+    # 'sio76': 303.92696,
+    # 'sio87': 347.33063,
+    # 'sio98': 390.72845,
+    # 'sio109': 434.11955,
+    # 'sio1110': 477.50310,
+    # 'sio1211': 520.87820,
+    # 'sio1312': 564.24396,
+    # 'sio1413': 607.59942,
+    # 'sio1514': 650.94359,
+    # 'sio1615': 694.27543,
+    # 'hi21cm': 1.420405751,
+    # 'h19alpha': 888.047022,
+    # 'h21alpha': 662.404162,
+    # 'h24alpha': 447.540278,
+    # 'h25alpha': 396.900834,
+    # 'h26alpha': 353.622747,
+    # 'h27alpha': 316.415425,
+    # 'h28alpha': 284.250571,
+    # 'h29alpha': 256.302035,
+    # 'h30alpha': 231.900928,
+    # 'h31alpha': 210.501771,
+    # 'h32alpha': 191.656728,
+    # 'h33alpha': 174.995805,
+    # 'h34alpha': 160.211511,
+    # 'h35alpha': 147.046878,
+    # 'h36alpha': 135.286032,
+    # 'h38alpha': 115.274399,
+    # 'h39alpha': 106.737357,
+    # 'h40alpha': 99.022952,
+    # 'h41alpha': 92.034434,
+    # 'h42alpha': 85.688390,
+    # 'h43alpha': 79.912651,
+    # 'h44alpha': 74.644562,
+    # 'h45alpha': 69.829551,
+    # 'h53alpha': 42.951968,
+    # 'h54alpha': 40.630498,
+    # 'h55alpha': 38.473358,
+    # 'h56alpha': 36.466260,
+    # 'h57alpha': 34.596383,
+    # 'h58alpha': 32.852196,
 }
 
 
@@ -285,8 +457,8 @@ KNOWN_LINE_DICT = {
 # 
 def extract_line_spw_selections(
         vis,
-        vlsrk = 0.0, # km/s
-        z = 0.0, 
+        vlsrk = None, # km/s
+        z = None, 
         fwzi = 500.0, # km/s
         line_dict = None, 
         verbose = False, 
@@ -456,16 +628,28 @@ def estimate_tclean_params(
     ):
     # 
     tclean_params = {}
-    cell = aU.pickCellSize(vis, intent=intent, spw=spw, maxBaselinePercentile=maxBaselinePercentile, npix=npix, cellstring=True)
+    cell = aU.pickCellSize(vis, 
+                           intent=intent, 
+                           maxBaselinePercentile=maxBaselinePercentile, 
+                           npix=npix, 
+                           cellstring=True,
+                           ) 
+                           # spw=spw, cannot specify spw=spw because aU.pickCellSize issue ('meanfreq = mymsmd.meanfreq(int(spw))')
     cellsize = float(cell.replace('arcsec',''))
     # determine fov and imsize
     if fov is None:
         if field and (field != ''):
-            result = aU.plotmosaic(vis, doplot=False, pblevel=pblevel, intent=intent, spw=spw, sourceid=field, verbose=False)
+            if re.match(r'^[0-9,]+$', field):
+                field_ints = list(map(int, field.split(',')))
+                result = aU.plotmosaic(vis, doplot=False, pblevel=pblevel, intent=intent, spw=spw, field=field_ints, verbose=False) # sourceid is for ephemeris object
+            else:
+                result = aU.plotmosaic(vis, doplot=False, pblevel=pblevel, intent=intent, spw=spw, sourceid=field, verbose=False) # sourceid is for ephemeris object
+            tclean_params['field'] = field
         else: # assuming that this vis data only contains science target fields
             result = aU.plotmosaic(vis, doplot=False, pblevel=pblevel, intent=intent, spw=spw, verbose=False)
         centralField, raMax, raMin, decMax, decMin = result
-        imsize = [int(np.ceil(abs(raMax-raMin)*np.cos(np.deg2rad((decMax+decMin)/2.0))/cellsize)), 
+        # ra dec Min Max are in arcsec
+        imsize = [int(np.ceil(abs(raMax-raMin)/cellsize)), # no need `*np.cos(np.deg2rad((decMax+decMin)/2.0))`
                   int(np.ceil(abs(decMax-decMin)/cellsize))]
         imsize = [int(aU.getOptimumSize(imsize[0])), int(aU.getOptimumSize(imsize[1]))]
     else:
@@ -478,6 +662,8 @@ def estimate_tclean_params(
             imsize[0] = maximsize
         if imsize[1] > maximsize:
             imsize[1] = maximsize
+    if spw and (spw != ''):
+        tclean_params['spw'] = spw
     tclean_params['cell'] = cell
     tclean_params['imsize'] = imsize
     tclean_params['specmode'] = 'mfs'
@@ -496,7 +682,7 @@ def selfcal_continuum_data(
         field = '', 
         phasecenter = '', 
         intent = 'OBSERVE_TARGET#ON_SOURCE', 
-        spw = '', 
+        spw = None, 
         maximsize = None, 
         calmode = 'p', 
         solint = '120s', 
@@ -551,19 +737,25 @@ def selfcal_continuum_data(
             print('  {}'.format(field))
     # 
     # make continuum dataset
-    spw = aU.getScienceSpws(vis, intent=intent, returnString=True)
+    if spw is None:
+        spw = aU.getScienceSpws(vis, intent=intent, returnString=True)
     mstransform_params = dict(field=field, intent=intent, spw=spw, 
                               chanaverage=True, chanbin=3840, # width=3840, 
                               timeaverage=True, timebin='30s', # must set timeaverage=True
                               datacolumn='data', keepflags=False, reindex=False)
     mstransform(vis, outputvis+'.tmp.cont', **mstransform_params)
-    #-- why FLAG are all zeros?
+    # 
+    # copy FIELD/EPHEM0_*.tab
+    if (len(glob.glob('{}/FIELD/EPHEM0_*.tab'.format(vis))) > 0) and \
+       (len(glob.glob('{}/FIELD/EPHEM0_*.tab'.format(outputvis+'.tmp.cont'))) == 0):
+        os.system('cp -r {}/FIELD/EPHEM0_*.tab {}/FIELD/'.format(vis, outputvis+'.tmp.cont'))
+    # 
     vis = outputvis+'.tmp.cont'
     # 
     # make initial clean
     if verbose:
         print('Estimating tclean params:')
-    tclean_params = estimate_tclean_params(vis, intent=intent, maximsize=maximsize) # , field=field, spw=spw
+    tclean_params = estimate_tclean_params(vis, intent=intent, maximsize=maximsize, field=field, spw=spw) # cannot specify spw=spw because aU.pickCellSize issue ('meanfreq = mymsmd.meanfreq(int(spw))')
     if phasecenter != '':
         tclean_params['phasecenter'] = phasecenter
     if verbose:
@@ -605,9 +797,16 @@ def selfcal_continuum_data(
         gaintable = []
     elif isinstance(gaintable, str):
         gaintable = [gaintable]
+    if verbose:
+        print('Making calibration table:')
+        print('gaincal({})'.format(params2str(dict(vis=vis, caltable=caltable, gaintable=gaintable, calmode=calmode, solint=solint))))
     gaincal(vis=vis, caltable=caltable, gaintable=gaintable, calmode=calmode, solint=solint)
+    if not os.path.exists(caltable):
+        raise Exception('Error! Failed to produce calibration table: {}'.format(caltable))
     # 
     # plotcal
+    if verbose:
+        print('Plotting calibration table')
     plotms(caltable, xaxis='time', yaxis='phase', plotrange=[0,0,-180,180], iteraxis='spw', gridrows=2, gridcols=2, 
            plotfile=caltable+'.plot.phase.vs.time.iter.spw.png', overwrite=True, highres=True, showgui=showgui)
     plotms(caltable, xaxis='time', yaxis='phase', plotrange=[0,0,-180,180], iteraxis='antenna', gridrows=3, gridcols=3, 
