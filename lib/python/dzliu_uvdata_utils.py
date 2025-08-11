@@ -37,6 +37,8 @@ Example commands to run this code (in CASA environment)::
 import os, sys, re, json, copy, glob, time, datetime, shutil
 import numpy as np
 import analysisUtils as aU
+import importlib
+importlib.reload(aU)
 import inspect
 import pprint
 
@@ -624,17 +626,21 @@ def estimate_tclean_params(
         maxBaselinePercentile = 95, 
         pblevel = 0.2, 
         npix = 5, 
+        cell = None, 
         maximsize = None, 
     ):
     # 
     tclean_params = {}
-    cell = aU.pickCellSize(vis, 
-                           intent=intent, 
-                           maxBaselinePercentile=maxBaselinePercentile, 
-                           npix=npix, 
-                           cellstring=True,
-                           ) 
+    if cell is None:
+        cell = aU.pickCellSize(vis, 
+                               intent=intent, 
+                               maxBaselinePercentile=maxBaselinePercentile, 
+                               npix=npix, 
+                               cellstring=True,
+                               ) 
                            # spw=spw, cannot specify spw=spw because aU.pickCellSize issue ('meanfreq = mymsmd.meanfreq(int(spw))')
+    else:
+        cell = str(cell)
     cellsize = float(cell.replace('arcsec',''))
     # determine fov and imsize
     if fov is None:
@@ -683,6 +689,7 @@ def selfcal_continuum_data(
         phasecenter = '', 
         intent = 'OBSERVE_TARGET#ON_SOURCE', 
         spw = None, 
+        cell = None, 
         maximsize = None, 
         calmode = 'p', 
         solint = '120s', 
@@ -755,7 +762,7 @@ def selfcal_continuum_data(
     # make initial clean
     if verbose:
         print('Estimating tclean params:')
-    tclean_params = estimate_tclean_params(vis, intent=intent, maximsize=maximsize, field=field, spw=spw) # cannot specify spw=spw because aU.pickCellSize issue ('meanfreq = mymsmd.meanfreq(int(spw))')
+    tclean_params = estimate_tclean_params(vis, intent=intent, field=field, spw=spw, cell=cell, maximsize=maximsize) # cannot specify spw=spw because aU.pickCellSize issue ('meanfreq = mymsmd.meanfreq(int(spw))')
     if phasecenter != '':
         tclean_params['phasecenter'] = phasecenter
     if verbose:
