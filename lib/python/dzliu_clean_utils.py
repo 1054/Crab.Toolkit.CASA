@@ -34,6 +34,7 @@ Last updates
 - 2021-01-04 updated tclean functions
 - 2021-06-10 fixed CASA 6 import issue
 - 2023-11-09 added load_params_from_dot_last_file
+- 2025-08-30 fixed an issue with the chstep in old uvfits (casa bug?)
 
 Example
 -------
@@ -778,7 +779,10 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
     spw_name = tb.getcol('NAME') # 
     spw_nchan = tb.getcol('NUM_CHAN') # 
     spw_chan_freq = np.array([tb.getcell('CHAN_FREQ', i)[0] for i in spw_id]) # a list of list, Hz
-    spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz, assuming all channels have the same width in a spw
+    spw_chan_freq0 = np.array([tb.getcell('CHAN_FREQ', i)[0] for i in spw_id]) # a list of list, Hz, 20250830
+    spw_chan_freq1 = np.array([tb.getcell('CHAN_FREQ', i)[-1] for i in spw_id]) # a list of list, Hz, 20250830
+    #spw_chan_width = np.array([tb.getcell('CHAN_WIDTH', i)[0] for i in spw_id]) # a list of list, Hz, assuming all channels have the same width in a spw
+    spw_chan_width = np.array([(spw_chan_freq1[i]-spw_chan_freq0[i])/float(spw_nchan[i]-1) for i in spw_id])
     spw_ref_freq = tb.getcol('REF_FREQUENCY') # Hz
     tb.close()
     # 
@@ -788,7 +792,8 @@ def get_spw_for_spectral_line(vis, redshift=None, rest_freq_GHz=None, line_width
         nchan = spw_nchan[i]
         ch0 = spw_chan_freq[i] # 
         chstep = spw_chan_width[i] # 
-        chlast = ch0 + (nchan-1.) * chstep
+        chlast = ch0 + (nchan-1.) * chstep #
+        # 20250830 some old uvfits has a bug that chstep is positive but spw_chan_freq 
         is_continuum_spw = ((nchan <= 4) or chstep>=31.25e6)
         if verbose:
             _print2('spw %s, ch0 %s, chlast %s, chstep %s, nchan %s, is_continuum_spw %s'%(i, ch0, chlast, chstep, nchan, is_continuum_spw))
